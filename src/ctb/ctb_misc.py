@@ -62,26 +62,13 @@ def reddit_get_parent_author(comment, reddit, ctb):
     while True:
 
         try:
-
-            parentpermalink = comment.permalink.replace(comment.id, comment.parent_id[3:])
-            commentlinkid = None
-            if hasattr(comment, 'link_id'):
-                commentlinkid = comment.link_id[3:]
+            parentcomment = reddit.get_info(thing_id=comment.parent_id)
+            if (parentcomment.author):
+                lg.debug("< reddit_get_parent_author(%s) -> %s", comment.id, parentcomment.author.name)
+                return parentcomment.author.name
             else:
-                comment2 = reddit.get_submission(comment.permalink).comments[0]
-                commentlinkid = comment2.link_id[3:]
-            parentid = comment.parent_id[3:]
-
-            if commentlinkid == parentid:
-                parentcomment = reddit.get_submission(parentpermalink)
-            else:
-                parentcomment = reddit.get_submission(parentpermalink).comments[0]
-
-            if parentcomment.author is None:
+                lg.warning("reddit_get_parent_author(%s): parent comment was deleted", comment.id)
                 return None
-			    
-            lg.debug("< reddit_get_parent_author(%s) -> %s", comment.id, parentcomment.author.name)
-            return parentcomment.author.name
 
         except IndexError as e:
             lg.warning("reddit_get_parent_author(): couldn't get author: %s", e)
