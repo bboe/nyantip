@@ -115,9 +115,9 @@ ALTcointip bot is configured by default to append INFO-level log messages to `lo
 
 ### Cron: Backups
 
-Backups are very important! The last thing you want is losing user wallets or record of transactions in the databse. 
+Backups are very important! The last thing you want is losing user wallets or records of transactions in the database. 
 
-There are three simple backup scripts included that support backing up database, wallets, and configuration files to local directory and (optionally) to a remote host with `rsync`. Make sure to schedule regular backups with cron and test whether they are actually performed. Example cron configuration:
+There are three simple backup scripts included that support backing up the database, wallets, and configuration files to local directory and (optionally) to a remote host with `rsync`. Make sure to schedule regular backups with cron and test whether they are actually performed. Example cron configuration:
 
     0 8,20 * * * cd /opt/altcointip/altcointip/src && python _backup_db.py ~/backups
     0 9,21 * * * cd /opt/altcointip/altcointip/src && python _backup_wallets.py ~/backups
