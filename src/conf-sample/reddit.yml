@@ -5,7 +5,7 @@ auth:
 scan:
     batch_limit: 1000
     my_subreddits: false
-    these_subreddits: ["nyancoins"]
+    these_subreddits: ["nyancoins", "nyantipbot"]
 
 help:
     enabled: true
