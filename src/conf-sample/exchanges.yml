@@ -59,7 +59,7 @@ campbx:
     uppercase: false
 
 cryptsy:
-    enabled: true
+    enabled: false
     domain: 'pubapi.cryptsy.com'
     https: false
     urlpaths: ['/api.php?method=marketdatav2']
