@@ -13,7 +13,7 @@ help:
 
 contact:
     enabled: true
-    url: 'http://www.reddit.com/message/compose/?to=nyantipbot'
+    url: 'http://www.reddit.com/message/compose/?to=nyantip'
 
 messages:
     verified: true
@@ -36,7 +36,7 @@ redeem:
 
 banned_users:
     method: list
-    list: ['nyantip', 'bitcointip', 'altcointip']
+    list: ['nyantip', 'nyantipbot', 'bitcointip', 'altcointip']
     subreddit: 'mysubreddit'
 
 stats:
