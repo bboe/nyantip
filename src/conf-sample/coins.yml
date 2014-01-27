@@ -34,7 +34,7 @@ nya:
     txmin:
         givetip: 0.1
         withdraw: 1
-    txfee: 1
+    txfee: 0.0001
     explorer:
         address: 'http://nyancha.in/address/'
         transaction: 'http://nyancha.in/tx/'
