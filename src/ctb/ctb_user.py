@@ -148,7 +148,7 @@ class CtbUser(object):
 
         try:
             # First, check t_users table
-            sql = "SELECT * FROM t_users WHERE username = '%s'"
+            sql = "SELECT * FROM t_users WHERE username = %s"
             mysqlrow = self.ctb.db.execute(sql, (self.name.lower())).fetchone()
 
             if mysqlrow == None:
