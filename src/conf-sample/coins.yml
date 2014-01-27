@@ -32,7 +32,7 @@ nya:
         givetip: 4
         withdraw: 60
     txmin:
-        givetip: 5
+        givetip: 0.1
         withdraw: 1
     txfee: 1
     explorer:
