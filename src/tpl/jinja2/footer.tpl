@@ -20,7 +20,7 @@
 {% endif %}
 *****
 
-^many ^links|&nbsp;
+links ^(nyan)|&nbsp;
 :---|:---
 {% if a and a.msg and a.msg.permalink %}
 ^Source ^comment|^[[link]]({{ a.msg.permalink }})
