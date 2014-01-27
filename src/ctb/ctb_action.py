@@ -638,7 +638,7 @@ class CtbAction(object):
 
             # This is not accept() of pending transaction, so post verification comment
             if not is_pending:
-                msg = self.ctb.jenv.get_template('confirmation.tpl').render(title='wow so verify', a=self, ctb=self.ctb)
+                msg = self.ctb.jenv.get_template('confirmation.tpl').render(title='verified nyan', a=self, ctb=self.ctb)
                 lg.debug("CtbAction::givetip(): " + msg)
                 if self.ctb.conf.reddit.messages.verified:
                     if not ctb_misc.praw_call(self.msg.reply, msg):
@@ -671,7 +671,7 @@ class CtbAction(object):
             self.save('completed')
 
             # Post verification comment
-            msg = self.ctb.jenv.get_template('confirmation.tpl').render(title='wow so verify', a=self, ctb=self.ctb)
+            msg = self.ctb.jenv.get_template('confirmation.tpl').render(title='verified nyan', a=self, ctb=self.ctb)
             lg.debug("CtbAction::givetip(): " + msg)
             if self.ctb.conf.reddit.messages.verified:
                 if not ctb_misc.praw_call(self.msg.reply, msg):
