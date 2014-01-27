@@ -1033,7 +1033,7 @@ def eval_message(msg, ctb):
             amount = m.group(r.rg_amount) if r.rg_amount > 0 else None
             keyword = m.group(r.rg_keyword) if r.rg_keyword > 0 else None
             
-            if ((to_addr == None) and (r.action == 'givetip')):
+            if ((to_addr is None) and (r.action == 'givetip')):
                 lg.debug("eval_message(): can't tip with no to_addr")
                 return None
 

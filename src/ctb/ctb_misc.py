@@ -92,8 +92,8 @@ def get_value(conn, param0=None):
     """
     lg.debug("> get_value()")
 
-    if param0 == None:
-        raise Exception("get_value(): param0 == None")
+    if param0 is None:
+        raise Exception("get_value(): param0 is None")
 
     value = None
     sql = "SELECT value0 FROM t_values WHERE param0 = %s"
@@ -101,7 +101,7 @@ def get_value(conn, param0=None):
     try:
 
         mysqlrow = conn.execute(sql, (param0)).fetchone()
-        if mysqlrow == None:
+        if mysqlrow is None:
             lg.error("get_value(): query <%s> didn't return any rows", sql % (param0))
             return None
         value = mysqlrow['value0']
@@ -119,8 +119,8 @@ def set_value(conn, param0=None, value0=None):
     """
     lg.debug("> set_value(%s, %s)", param0, value0)
 
-    if param0 == None or value0 == None:
-        raise Exception("set_value(): param0 == None or value0 == None")
+    if param0 is None or value0 is None:
+        raise Exception("set_value(): param0 is None or value0 is None")
     sql = "REPLACE INTO t_values (param0, value0) VALUES (%s, %s)"
 
     try:
