@@ -1,19 +1,19 @@
 auth:
-    user: 'mybotuser'
+    user: 'nyantip'
     password: 'mybotpass'
 
 scan:
     batch_limit: 1000
     my_subreddits: false
-#    these_subreddits: ["all"]
+    these_subreddits: ["nyancoins"]
 
 help:
     enabled: true
-    url: 'http://www.reddit.com/r/mysubreddit/wiki/index'
+    url: 'http://www.reddit.com/r/nyantipbot/wiki/index'
 
 contact:
     enabled: true
-    url: 'http://www.reddit.com/message/compose/?to=YOUR_NAME'
+    url: 'http://www.reddit.com/message/compose/?to=nyantipbot'
 
 messages:
     verified: true
@@ -36,7 +36,7 @@ redeem:
 
 banned_users:
     method: list
-    list: ['mybotuser', 'bitcointip', 'altcointip']
+    list: ['nyantip', 'bitcointip', 'altcointip']
     subreddit: 'mysubreddit'
 
 stats:
