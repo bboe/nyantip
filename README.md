@@ -1,8 +1,8 @@
-# It's nyantipbot!
+# It's nyantip!
 
 ## Introduction
 
-nyantipbot is a fork of mohland's dogetipbot, found at __https://github.com/mohland/dogetipbot__, which in turn is a fork of vindimy's ALTcointip bot, found at __https://github.com/vindimy/altcointip__
+nyantip is a fork of mohland's dogetipbot, found at __https://github.com/mohland/dogetipbot__, which in turn is a fork of vindimy's ALTcointip bot, found at __https://github.com/vindimy/altcointip__
 
 note that this bot only accepts nyancoins.
 
