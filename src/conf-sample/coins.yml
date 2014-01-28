@@ -25,7 +25,7 @@ nya:
     enabled: true
     unit: nya
     name: Nyancoin
-    symbol: 'N'
+    symbol: 'Ɲ'
     config_file: '~/.nyancoin/nyancoin.conf'
     config_rpcserver: '127.0.0.1'
     minconf:
@@ -40,4 +40,4 @@ nya:
         transaction: 'http://nyancha.in/tx/'
     regex:
         address: '(K[1-9a-z]{20,40})'
-        units: '(nyan|nyancoin|nyancoins|nyans|N|cat|cats|nyancat|nyancats)'
+        units: '(Nyan|Nyancoin|Nyancoins|Nyans|Cat|Cats|Nyancat|Nyancats|Ɲ|nyan|nyancoin|nyancoins|nyans|N|cat|cats|nyancat|nyancats)'
