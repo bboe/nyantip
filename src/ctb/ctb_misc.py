@@ -63,7 +63,7 @@ def reddit_get_parent_author(comment, reddit, ctb):
 
         try:
             parentcomment = reddit.get_info(thing_id=comment.parent_id)
-            if (parentcomment.author):
+            if (hasattr(parentcomment, 'author') and parentcomment.author):
                 lg.debug("< reddit_get_parent_author(%s) -> %s", comment.id, parentcomment.author.name)
                 return parentcomment.author.name
             else:
