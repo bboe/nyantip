@@ -45,7 +45,7 @@ class CtbAction(object):
 
     msg=None            # Reddit object pointing to originating message/comment
     ctb=None            # CointipBot instance
-    
+
     deleted_msg_id=None	        # Used for accepting tips if the original message was deleted
     deleted_created_utc=None    # Used for accepting tips if the original message was deleted
 
@@ -212,16 +212,16 @@ class CtbAction(object):
             self.coinval = 0.0
         if self.fiatval < 0.0:
             self.fiatval = 0.0
-        
+
         realutc = None
         realmsgid = None
-        
+
         if self.msg:
             realmsgid=self.msg.id
             realutc=self.msg.created_utc
         else:
             realmsgid=self.deleted_msg_id;
-            realutc=self.deleted_created_utc;		
+            realutc=self.deleted_created_utc;
 
         conn = self.ctb.db
         sql = "REPLACE INTO t_action (type, state, created_utc, from_user, to_user, to_addr, coin_val, fiat_val, txid, coin, fiat, subreddit, msg_id, msg_link)"
@@ -242,7 +242,7 @@ class CtbAction(object):
                      self.fiat,
                      self.subreddit,
                      realmsgid,
-                     self.msg.permalink if hasattr(self.msg, 'permalink') else None))
+                     ctb_misc.permalink(self.msg)))
             if mysqlexec.rowcount <= 0:
                 raise Exception("query didn't affect any rows")
         except Exception as e:
@@ -260,7 +260,7 @@ class CtbAction(object):
                 self.fiat,
                 self.subreddit,
                 realmsgid,
-                self.msg.permalink if hasattr(self.msg, 'permalink') else None), e)
+                ctb_misc.permalink(self.msg)), e)
             raise
 
         lg.debug("< CtbAction::save() DONE")
@@ -399,7 +399,7 @@ class CtbAction(object):
                 ctb_stats.update_user_stats(ctb=a.ctb, username=a.u_to.name)
 
                 # Respond to tip comment
-                msg = self.ctb.jenv.get_template('confirmation.tpl').render(title='Declined', a=a, ctb=a.ctb, source_link=a.msg.permalink if a.msg else None)
+                msg = self.ctb.jenv.get_template('confirmation.tpl').render(title='Declined', a=a, ctb=a.ctb, source_link=ctb_misc.permalink(a.msg))
                 lg.debug("CtbAction::decline(): " + msg)
                 if self.ctb.conf.reddit.messages.declined:
                     if not ctb_misc.praw_call(a.msg.reply, msg):
@@ -442,7 +442,7 @@ class CtbAction(object):
         ctb_stats.update_user_stats(ctb=self.ctb, username=self.u_to.name)
 
         # Respond to tip comment
-        msg = self.ctb.jenv.get_template('confirmation.tpl').render(title='Expired', a=self, ctb=self.ctb, source_link=self.msg.permalink if self.msg else None)
+        msg = self.ctb.jenv.get_template('confirmation.tpl').render(title='Expired', a=self, ctb=self.ctb, source_link=ctb_misc.permalink(self.msg))
         lg.debug("CtbAction::expire(): " + msg)
         if self.ctb.conf.reddit.messages.expired:
             if not ctb_misc.praw_call(self.msg.reply, msg):
@@ -582,13 +582,13 @@ class CtbAction(object):
         Initiate tip
         """
         lg.debug("> CtbAction::givetip()")
-        
+
         if self.msg:
         	my_id=self.msg.id
         else:
         	my_id=self.deleted_msg_id
         	deleted_created_utc=self.deleted_created_utc
-        	
+
         # Check if action has been processed
         if check_action(atype=self.type, msg_id=my_id, ctb=self.ctb, is_pending=is_pending):
             # Found action in database, returning
@@ -1032,7 +1032,7 @@ def eval_message(msg, ctb):
             to_addr = m.group(r.rg_address) if r.rg_address > 0 else None
             amount = m.group(r.rg_amount) if r.rg_amount > 0 else None
             keyword = m.group(r.rg_keyword) if r.rg_keyword > 0 else None
-            
+
             if ((to_addr is None) and (r.action == 'givetip')):
                 lg.debug("eval_message(): can't tip with no to_addr")
                 return None
@@ -1206,14 +1206,14 @@ def get_actions(atype=None, state=None, deleted_msg_id=None, deleted_created_utc
 
             for m in mysqlexec:
                 if m['msg_link'] is None: continue
-                
+
                 lg.debug("get_actions(): found %s", m['msg_link'])
 
                 # Get PRAW message (msg) and author (msg.author) objects
                 submission = ctb_misc.praw_call(ctb.reddit.get_submission, m['msg_link'])
 
                 msg = None
-                
+
                 if not submission:
                     lg.warning("get_actions(): submission not found for %s . msgid %s", m['msg_link'], m['msg_id'])
 
@@ -1228,7 +1228,7 @@ def get_actions(atype=None, state=None, deleted_msg_id=None, deleted_created_utc
                         if not msg.author:
                             lg.warning("get_actions(): could not fetch msg.author (deleted?) from msg_link %s", m['msg_link'])
                             lg.warning("get_actions(): setting msg.author to original tipper %s", m['from_user'])
-                        
+
 
                 r.append( CtbAction( atype=atype,
                                      msg=msg,
