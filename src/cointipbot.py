@@ -256,7 +256,7 @@ class CointipBot(object):
             time.sleep(self.conf.misc.times.sleep_seconds)
             pass
         except Exception as e:
-            lg.error("CointipBot::check_inbox(): %s", e)
+            lg.exception("CointipBot::check_inbox(): %s", e)
             #raise
 	    # ^ what do we say to death?
 	    lg.error("^not today (^skipped raise)")
