@@ -244,7 +244,7 @@ class CointipBot(object):
                     if self.conf.reddit.messages.sorry and not m.subject in ['post reply', 'comment reply']:
                         user = ctb_user.CtbUser(name=m.author.name, redditobj=m.author, ctb=self)
                         tpl = self.jenv.get_template('didnt-understand.tpl')
-                        msg = tpl.render(user_from=user.name, what='comment' if m.was_comment else 'message', source_link=ctb_misc.permalink(m.msg), ctb=self)
+                        msg = tpl.render(user_from=user.name, what='comment' if m.was_comment else 'message', source_link=ctb_misc.permalink(m), ctb=self)
                         lg.debug("CointipBot::check_inbox(): %s", msg)
                         user.tell(subj='What?', msg=msg, msgobj=m if not m.was_comment else None)
 
