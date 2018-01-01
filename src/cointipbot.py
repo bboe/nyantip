@@ -259,7 +259,10 @@ class CointipBot(object):
             lg.exception("CointipBot::check_inbox(): %s", e)
             #raise
 	    # ^ what do we say to death?
-	    lg.error("^not today (^skipped raise)")
+#	    lg.error("^not today (^skipped raise)")
+            raise #not sure if right number of spaces; try to quit on error
+# for now, quitting on error because of dealing with on-going issues; switch
+# back when stable
 
         lg.debug("< CointipBot::check_inbox() DONE")
         return True
