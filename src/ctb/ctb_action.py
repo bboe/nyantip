@@ -1205,7 +1205,7 @@ def get_actions(atype=None, state=None, deleted_msg_id=None, deleted_created_utc
                 return r
 
             for m in mysqlexec:
-                if m['msg_link'] is None: continue
+#                if m['msg_link'] is None: continue
                 
                 lg.debug("get_actions(): found %s", m['msg_link'])
 
