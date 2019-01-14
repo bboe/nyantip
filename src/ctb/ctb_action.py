@@ -1210,7 +1210,8 @@ def get_actions(atype=None, state=None, deleted_msg_id=None, deleted_created_utc
                 lg.debug("get_actions(): found %s", m['msg_link'])
 
                 # Get PRAW message (msg) and author (msg.author) objects
-                submission = ctb_misc.praw_call(ctb.reddit.get_submission, m['msg_link'])
+                try:
+                    submission = ctb_misc.praw_call(ctb.reddit.get_submission, m['msg_link'])
 
                 msg = None
                 
