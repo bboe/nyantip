@@ -1212,6 +1212,8 @@ def get_actions(atype=None, state=None, deleted_msg_id=None, deleted_created_utc
                 # Get PRAW message (msg) and author (msg.author) objects
                 try:
                     submission = ctb_misc.praw_call(ctb.reddit.get_submission, m['msg_link'])
+                except:
+                    pass
 
                 msg = None
                 
