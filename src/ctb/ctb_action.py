@@ -198,7 +198,7 @@ class CtbAction(object):
         Return string representation of self
         """
         me = "<CtbAction: type=%s, msg=%s, from_user=%s, to_user=%s, to_addr=%s, coin=%s, fiat=%s, coin_val=%s, fiat_val=%s, subr=%s, ctb=%s>"
-        me = me % (self.type, self.msg.body, self.u_from, self.u_to, self.addr_to, self.coin, self.fiat, self.coinval, self.fiatval, self.subreddit, self.ctb)
+        me = me % (self.type, None if self.msg is None else self.msg.body, self.u_from, self.u_to, self.addr_to, self.coin, self.fiat, self.coinval, self.fiatval, self.subreddit, self.ctb)
         return me
 
     def save(self, state=None):
