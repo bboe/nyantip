@@ -249,7 +249,7 @@ class CtbAction(object):
             lg.error("CtbAction::save(%s): error executing query <%s>: %s", state, sql % (
                 self.type,
                 state,
-                self.msg.created_utc,
+                self.msg.created_utc if self.msg else None,
                 self.u_from.name.lower(),
                 self.u_to.name.lower() if self.u_to else None,
                 self.addr_to,
