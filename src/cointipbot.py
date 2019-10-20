@@ -257,6 +257,8 @@ class CointipBot(object):
             pass
         except Exception as e:
             lg.error("CointipBot::check_inbox(): %s", e)
+            tb = traceback.format_exc()
+            lg.error("CointipBot::check_inbox(): traceback: %s", tb)
             # raise
 	    lg.error("^not dying; continuing to run; ERROR EXCEPTION danger mode")
 	    # ^ that
