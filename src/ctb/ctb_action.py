@@ -1220,7 +1220,8 @@ def get_actions(atype=None, state=None, deleted_msg_id=None, deleted_created_utc
                 
                 if not submission:
                     lg.warning("get_actions(): submission not found for %s . msgid %s", m['msg_link'], m['msg_id'])
-
+                    deleted_msg_id=m['msg_id']
+                    deleted_created_utc=m['created_utc']
                 else:
                     if not len(submission.comments) > 0:
                         lg.warning("get_actions(): could not fetch msg (deleted?) from msg_link %s", m['msg_link'])
