@@ -53,6 +53,12 @@ def praw_call(prawFunc, *extraArgs, **extraKwArgs):
 
     return True
 
+def permalink(message):
+    """
+    Return permalink if possible for message.
+    """
+    return getattr(message, '_fast_permalink', None)
+
 def reddit_get_parent_author(comment, reddit, ctb):
     """
     Return author of comment's parent comment
