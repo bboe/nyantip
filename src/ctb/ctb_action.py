@@ -198,7 +198,7 @@ class CtbAction(object):
         Return string representation of self
         """
         me = "<CtbAction: type=%s, msg=%s, from_user=%s, to_user=%s, to_addr=%s, coin=%s, fiat=%s, coin_val=%s, fiat_val=%s, subr=%s, ctb=%s>"
-        me = me % (self.type, self.msg.body, self.u_from, self.u_to, self.addr_to, self.coin, self.fiat, self.coinval, self.fiatval, self.subreddit, self.ctb)
+        me = me % (self.type, None if self.msg is None else self.msg.body, self.u_from, self.u_to, self.addr_to, self.coin, self.fiat, self.coinval, self.fiatval, self.subreddit, self.ctb)
         return me
 
     def save(self, state=None):
@@ -249,7 +249,7 @@ class CtbAction(object):
             lg.error("CtbAction::save(%s): error executing query <%s>: %s", state, sql % (
                 self.type,
                 state,
-                self.msg.created_utc,
+                self.msg.created_utc if self.msg else None,
                 self.u_from.name.lower(),
                 self.u_to.name.lower() if self.u_to else None,
                 self.addr_to,
@@ -1205,18 +1205,23 @@ def get_actions(atype=None, state=None, deleted_msg_id=None, deleted_created_utc
                 return r
 
             for m in mysqlexec:
-                if m['msg_link'] is None: continue
+#                if m['msg_link'] is None: continue
 
                 lg.debug("get_actions(): found %s", m['msg_link'])
 
                 # Get PRAW message (msg) and author (msg.author) objects
-                submission = ctb_misc.praw_call(ctb.reddit.get_submission, m['msg_link'])
+                try:
+                    submission = ctb_misc.praw_call(ctb.reddit.get_submission, m['msg_link'])
+                except:
+                    submission = None
+                    pass
 
                 msg = None
 
                 if not submission:
                     lg.warning("get_actions(): submission not found for %s . msgid %s", m['msg_link'], m['msg_id'])
-
+                    deleted_msg_id=m['msg_id']
+                    deleted_created_utc=m['created_utc']
                 else:
                     if not len(submission.comments) > 0:
                         lg.warning("get_actions(): could not fetch msg (deleted?) from msg_link %s", m['msg_link'])
