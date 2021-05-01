@@ -215,7 +215,7 @@ class CtbUser(object):
                 lg.debug("< CtbUser::is_registered(%s) DONE (yes)", self.name)
                 return True
 
-        except Exception, e:
+        except Exception as e:
             lg.error(
                 "CtbUser::is_registered(%s): error while executing <%s>: %s",
                 self.name,
@@ -266,7 +266,7 @@ class CtbUser(object):
                     "CtbUser::register(%s): rowcount <= 0 while executing <%s>"
                     % (self.name, sql_adduser % (self.name.lower()))
                 )
-        except Exception, e:
+        except Exception as e:
             lg.error(
                 "CtbUser::register(%s): exception while executing <%s>: %s",
                 self.name,
@@ -300,7 +300,7 @@ class CtbUser(object):
                         % (self.name, sql_addr % (self.name.lower(), c, new_addrs[c]))
                     )
 
-            except Exception, e:
+            except Exception as e:
                 # Undo change to database
                 delete_user(_username=self.name.lower(), _db=self.ctb.db)
                 raise
@@ -388,7 +388,7 @@ def delete_user(_username=None, _db=None):
                     sql % _username.lower(),
                 )
 
-    except Exception, e:
+    except Exception as e:
         lg.error(
             "delete_user(%s): error while executing <%s>: %s",
             _username,

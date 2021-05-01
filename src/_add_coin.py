@@ -13,8 +13,8 @@ import cointipbot
 from ctb import ctb_coin, ctb_misc
 
 if not len(sys.argv) == 2:
-    print "Usage: %s COIN" % sys.argv[0]
-    print "(COIN refers to ctb.conf[COIN], a hash location in coins.yml)"
+    print("Usage: %s COIN" % sys.argv[0])
+    print("(COIN refers to ctb.conf[COIN], a hash location in coins.yml)")
     sys.exit(1)
 
 coin = sys.argv[1]
