@@ -19,14 +19,7 @@ import logging
 import time
 from socket import timeout
 
-import ctb_user
-from praw.errors import (
-    APIException,
-    ExceptionList,
-    InvalidCaptcha,
-    InvalidUser,
-    RateLimitExceeded,
-)
+from praw.errors import RateLimitExceeded
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 
 lg = logging.getLogger("cointipbot")

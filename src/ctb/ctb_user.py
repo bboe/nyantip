@@ -16,11 +16,8 @@
 """
 
 import logging
-import re
-import time
 
 import ctb_misc
-import praw
 
 lg = logging.getLogger("cointipbot")
 

@@ -16,8 +16,6 @@
     along with ALTcointip.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import gettext
-import locale
 import logging
 import smtplib
 import sys
@@ -29,13 +27,7 @@ from socket import timeout
 import praw
 import yaml
 from jinja2 import Environment, PackageLoader
-from praw.errors import (
-    APIException,
-    ExceptionList,
-    InvalidCaptcha,
-    InvalidUser,
-    RateLimitExceeded,
-)
+from praw.errors import RateLimitExceeded
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 
 from ctb import ctb_action, ctb_coin, ctb_db, ctb_exchange, ctb_log, ctb_misc, ctb_user

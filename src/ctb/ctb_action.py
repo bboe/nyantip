@@ -17,13 +17,10 @@
 
 import logging
 import re
-import time
-from random import randint
 
 import ctb_misc
 import ctb_stats
 import ctb_user
-import praw
 
 lg = logging.getLogger("cointipbot")
 

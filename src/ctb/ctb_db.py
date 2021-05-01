@@ -15,17 +15,7 @@
     along with ALTcointip.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from sqlalchemy import (
-    Column,
-    ForeignKey,
-    Integer,
-    MetaData,
-    Numeric,
-    String,
-    Table,
-    UnicodeText,
-    create_engine,
-)
+from sqlalchemy import MetaData, create_engine
 from sqlalchemy.pool import SingletonThreadPool
 
 
