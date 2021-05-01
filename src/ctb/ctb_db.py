@@ -16,15 +16,15 @@
 """
 
 from sqlalchemy import (
-    create_engine,
-    Table,
     Column,
-    Integer,
-    String,
-    MetaData,
     ForeignKey,
+    Integer,
+    MetaData,
     Numeric,
+    String,
+    Table,
     UnicodeText,
+    create_engine,
 )
 from sqlalchemy.pool import SingletonThreadPool
 

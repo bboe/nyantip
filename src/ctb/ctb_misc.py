@@ -15,19 +15,19 @@
     along with ALTcointip.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import logging
+import time
+from socket import timeout
+
 import ctb_user
-
-import logging, time
-
-from requests.exceptions import HTTPError, ConnectionError, Timeout
 from praw.errors import (
-    ExceptionList,
     APIException,
+    ExceptionList,
     InvalidCaptcha,
     InvalidUser,
     RateLimitExceeded,
 )
-from socket import timeout
+from requests.exceptions import ConnectionError, HTTPError, Timeout
 
 lg = logging.getLogger("cointipbot")
 

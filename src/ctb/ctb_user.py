@@ -15,9 +15,12 @@
     along with ALTcointip.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import ctb_misc
+import logging
+import re
+import time
 
-import logging, time, praw, re
+import ctb_misc
+import praw
 
 lg = logging.getLogger("cointipbot")
 

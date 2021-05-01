@@ -15,7 +15,11 @@
     along with ALTcointip.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import json, logging, urllib2, httplib
+import json
+import logging
+
+import httplib
+import urllib2
 
 lg = logging.getLogger("cointipbot")
 

@@ -15,7 +15,9 @@
     along with ALTcointip.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import cointipbot, logging
+import logging
+
+import cointipbot
 from ctb import ctb_stats
 
 logging.basicConfig()

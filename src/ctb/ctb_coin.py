@@ -15,9 +15,12 @@
     along with ALTcointip.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import logging, re, time
-from pifkoin.bitcoind import Bitcoind, BitcoindException
+import logging
+import re
+import time
+
 from httplib import CannotSendRequest
+from pifkoin.bitcoind import Bitcoind, BitcoindException
 
 lg = logging.getLogger("cointipbot")
 

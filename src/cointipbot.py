@@ -16,21 +16,29 @@
     along with ALTcointip.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from ctb import ctb_action, ctb_coin, ctb_db, ctb_exchange, ctb_log, ctb_misc, ctb_user
-
-import gettext, locale, logging, praw, smtplib, sys, time, traceback, yaml
+import gettext
+import locale
+import logging
+import smtplib
+import sys
+import time
+import traceback
 from email.mime.text import MIMEText
-from jinja2 import Environment, PackageLoader
+from socket import timeout
 
-from requests.exceptions import HTTPError, ConnectionError, Timeout
+import praw
+import yaml
+from jinja2 import Environment, PackageLoader
 from praw.errors import (
-    ExceptionList,
     APIException,
+    ExceptionList,
     InvalidCaptcha,
     InvalidUser,
     RateLimitExceeded,
 )
-from socket import timeout
+from requests.exceptions import ConnectionError, HTTPError, Timeout
+
+from ctb import ctb_action, ctb_coin, ctb_db, ctb_exchange, ctb_log, ctb_misc, ctb_user
 
 # Configure CointipBot logger
 logging.basicConfig()

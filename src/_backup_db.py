@@ -1,7 +1,10 @@
 # Simple script to back up ALTcointip database
 
-import sys, os, datetime
+import datetime
+import os
+import sys
 from distutils.spawn import find_executable
+
 import cointipbot
 
 if not len(sys.argv) in [2, 3] or not os.access(sys.argv[1], os.W_OK):
