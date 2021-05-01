@@ -327,7 +327,7 @@ class CointipBot(object):
                     action.do()
                 else:
                     lg.info("CointipBot::check_inbox(): no match")
-                    if self.conf.reddit.messages.sorry and not m.subject in [
+                    if self.conf.reddit.messages.sorry and m.subject not in [
                         "post reply",
                         "comment reply",
                     ]:
