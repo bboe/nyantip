@@ -195,7 +195,7 @@ class CtbCoin(object):
         addr_valid = self.conn.validateaddress(addr)
         time.sleep(0.5)
 
-        if not addr_valid.has_key("isvalid") or not addr_valid["isvalid"]:
+        if "isvalid" not in addr_valid or not addr_valid["isvalid"]:
             lg.debug("CtbCoin::validateaddr(%s): not valid", addr)
             return False
         else:

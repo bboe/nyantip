@@ -74,7 +74,7 @@ class CointipBot(object):
 
         # Set handlers
         for level in levels:
-            if handlers.has_key(level):
+            if level in handlers:
                 level_to_set = (
                     logging.WARNING
                     if level == "warning"
@@ -572,7 +572,7 @@ class CointipBot(object):
                     result = 1.0
 
                 # Assign result to self.runtime['ev']
-                if not self.runtime["ev"].has_key(c):
+                if c not in self.runtime["ev"]:
                     self.runtime["ev"][c] = {}
                 self.runtime["ev"][c]["btc"] = result
 
@@ -601,7 +601,7 @@ class CointipBot(object):
                     result = sum(values) / float(len(values))
 
                 # Assign result to self.runtime['ev']
-                if not self.runtime["ev"].has_key("btc"):
+                if "btc" not in self.runtime["ev"]:
                     self.runtime["ev"]["btc"] = {}
                 self.runtime["ev"]["btc"][f] = result
 

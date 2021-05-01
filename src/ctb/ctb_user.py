@@ -311,9 +311,9 @@ class CtbUser(object):
         """
         lg.debug("> CtbUser::get_redeem_amount(%s)", coin)
 
-        if not coin or not self.ctb.coins.has_key(coin):
+        if not coin or coin not in self.ctb.coins:
             raise Exception("CtbUser::get_redeem_amount(%s): invalid coin" % coin)
-        if not fiat or not self.ctb.conf.fiat.has_key(fiat):
+        if not fiat or fiat not in self.ctb.conf.fiat:
             raise Exception("CtbUser::get_redeem_amount(%s): invalid fiat" % fiat)
 
         # Check if we have coin's fiat value
