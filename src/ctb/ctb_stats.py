@@ -22,7 +22,7 @@ import logging
 import re
 import time
 
-import ctb_misc
+from . import ctb_misc
 
 lg = logging.getLogger("cointipbot")
 

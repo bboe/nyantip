@@ -17,7 +17,7 @@
 
 import logging
 
-import ctb_misc
+from . import ctb_misc
 
 lg = logging.getLogger("cointipbot")
 

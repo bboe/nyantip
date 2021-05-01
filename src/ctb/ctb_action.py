@@ -18,9 +18,7 @@
 import logging
 import re
 
-import ctb_misc
-import ctb_stats
-import ctb_user
+from . import ctb_misc, ctb_stats, ctb_user
 
 lg = logging.getLogger("cointipbot")
 
