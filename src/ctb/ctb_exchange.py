@@ -175,7 +175,7 @@ def xpath_get(mydict, path):
                 elem = elem[x]
             except ValueError:
                 elem = elem.get(x)
-    except:
+    except Exception:
         pass
 
     return elem

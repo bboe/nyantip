@@ -1659,9 +1659,8 @@ def get_actions(
                     submission = ctb_misc.praw_call(
                         ctb.reddit.get_submission, m["msg_link"]
                     )
-                except:
+                except Exception:
                     submission = None
-                    pass
 
                 msg = None
 
