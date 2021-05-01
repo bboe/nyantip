@@ -616,7 +616,7 @@ class CointipBot(object):
         """
         try:
             value = self.runtime["ev"][_coin]["btc"] * self.runtime["ev"]["btc"][_fiat]
-        except KeyError as e:
+        except KeyError:
             lg.warning("CointipBot::coin_value(%s, %s): KeyError", _coin, _fiat)
             value = 0.0
         return value

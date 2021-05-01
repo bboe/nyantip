@@ -99,7 +99,7 @@ def update_tips(ctb=None):
     # Start building stats page
     tip_list = "### All Completed Tips\n\n"
 
-    q = ctb.db.execute(ctb.conf.db.sql.tips.sql_set)
+    ctb.db.execute(ctb.conf.db.sql.tips.sql_set)
     tips = ctb.db.execute(ctb.conf.db.sql.tips.sql_list, (ctb.conf.db.sql.tips.limit))
     tip_list += ("|".join(tips.keys())) + "\n"
     tip_list += ("|".join([":---"] * len(tips.keys()))) + "\n"

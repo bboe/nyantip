@@ -46,9 +46,6 @@ def praw_call(prawFunc, *extraArgs, **extraKwArgs):
                 return False
             lg.warning("praw_call(): Reddit is down (%s), sleeping...", e)
             time.sleep(30)
-            pass
-        except Exception as e:
-            raise
 
     return True
 
@@ -92,14 +89,11 @@ def reddit_get_parent_author(comment, reddit, ctb):
                 "reddit_get_parent_author(): Reddit is down (%s), sleeping...", e
             )
             time.sleep(ctb.conf.misc.times.sleep_seconds)
-            pass
         except HTTPError as e:
             lg.warning(
                 "reddit_get_parent_author(): thread or comment not found (%s)", e
             )
             return None
-        except Exception as e:
-            raise
 
     lg.error("reddit_get_parent_author(): returning None (should not get here)")
     return None

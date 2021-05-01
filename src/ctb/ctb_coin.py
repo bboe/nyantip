@@ -117,7 +117,7 @@ class CtbCoin(object):
                 userfrom,
                 userto,
             )
-            result = self.conn.move(userfrom, userto, amount)
+            self.conn.move(userfrom, userto, amount)
             time.sleep(0.5)
         except Exception as e:
             lg.error(
@@ -234,7 +234,7 @@ class CtbCoin(object):
             except BitcoindException as e:
                 lg.error("CtbCoin::getnewaddr(%s): BitcoindException: %s", user, e)
                 raise
-            except CannotSendRequest as e:
+            except CannotSendRequest:
                 if counter < 3:
                     lg.warning("CtbCoin::getnewaddr(%s): CannotSendRequest, retrying")
                     counter += 1

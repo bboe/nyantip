@@ -816,7 +816,6 @@ class CtbAction(object):
             my_id = self.msg.id
         else:
             my_id = self.deleted_msg_id
-            deleted_created_utc = self.deleted_created_utc
 
         # Check if action has been processed
         if check_action(
@@ -927,7 +926,7 @@ class CtbAction(object):
                     _amount=self.coinval,
                 )
 
-            except Exception as e:
+            except Exception:
 
                 # Transaction failed
                 self.save("failed")
@@ -1220,7 +1219,7 @@ class CtbAction(object):
                     else:
                         rates[coin][exchange]["btc"] = None
                         rates[coin][exchange][fiat] = None
-                except TypeError as e:
+                except TypeError:
                     msg = self.ctb.jenv.get_template("rates-error.tpl").render(
                         exchange=exchange, a=self, ctb=self.ctb
                     )

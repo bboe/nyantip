@@ -156,7 +156,7 @@ class CtbUser(object):
             else:
                 return False
 
-        except Exception as e:
+        except Exception:
             lg.debug("< CtbUser::is_on_reddit(%s) DONE (no)", self.name)
             return False
 
@@ -196,7 +196,7 @@ class CtbUser(object):
                             self.name,
                         )
                         sql_delete = "DELETE FROM t_users WHERE username = %s"
-                        mysql_res = self.ctb.db.execute(sql_delete, (self.name.lower()))
+                        self.ctb.db.execute(sql_delete, (self.name.lower()))
                         # User is not registered
                         return False
                     else:
@@ -297,7 +297,7 @@ class CtbUser(object):
                         % (self.name, sql_addr % (self.name.lower(), c, new_addrs[c]))
                     )
 
-            except Exception as e:
+            except Exception:
                 # Undo change to database
                 delete_user(_username=self.name.lower(), _db=self.ctb.db)
                 raise
