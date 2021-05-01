@@ -173,7 +173,7 @@ def update_user_stats(ctb=None, username=None):
             ctb.conf.db.sql.userstats.total_tipped_fiat, (username, f)
         )
         total_tipped_fiat = mysqlexec.fetchone()
-        if total_tipped_fiat["total_fiat"] != None:
+        if total_tipped_fiat["total_fiat"] is not None:
             user_stats += "**%s**|%s %.2f\n" % (
                 f,
                 ctb.conf.fiat[f].symbol,
@@ -191,7 +191,7 @@ def update_user_stats(ctb=None, username=None):
             ctb.conf.db.sql.userstats.total_tipped_coin, (username, c)
         )
         total_tipped_coin = mysqlexec.fetchone()
-        if total_tipped_coin["total_coin"] != None:
+        if total_tipped_coin["total_coin"] is not None:
             user_stats += "**%s**|%s %.6f\n" % (
                 c,
                 ctb.conf.coins[c].symbol,
@@ -208,7 +208,7 @@ def update_user_stats(ctb=None, username=None):
             ctb.conf.db.sql.userstats.total_received_fiat, (username, f)
         )
         total_received_fiat = mysqlexec.fetchone()
-        if total_received_fiat["total_fiat"] != None:
+        if total_received_fiat["total_fiat"] is not None:
             user_stats += "**%s**|%s %.2f\n" % (
                 f,
                 ctb.conf.fiat[f].symbol,
@@ -226,7 +226,7 @@ def update_user_stats(ctb=None, username=None):
             ctb.conf.db.sql.userstats.total_received_coin, (username, c)
         )
         total_received_coin = mysqlexec.fetchone()
-        if total_received_coin["total_coin"] != None:
+        if total_received_coin["total_coin"] is not None:
             user_stats += "**%s**|%s %.6f\n" % (
                 c,
                 ctb.conf.coins[c].symbol,
