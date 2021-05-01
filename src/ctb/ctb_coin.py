@@ -18,8 +18,8 @@
 import logging
 import re
 import time
+from http.client import CannotSendRequest
 
-from httplib import CannotSendRequest
 from pifkoin.bitcoind import Bitcoind, BitcoindException
 
 lg = logging.getLogger("cointipbot")

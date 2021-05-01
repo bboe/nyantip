@@ -15,11 +15,9 @@
     along with ALTcointip.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import http.client
 import json
 import logging
-
-import httplib
-import urllib2
 
 lg = logging.getLogger("cointipbot")
 
@@ -118,10 +116,10 @@ class CtbExchange(object):
                         myjsonpath,
                     )
                     if self.conf.https:
-                        connection = httplib.HTTPSConnection(self.conf.domain)
+                        connection = http.client.HTTPSConnection(self.conf.domain)
                         connection.request("GET", myurlpath, {}, {})
                     else:
-                        connection = httplib.HTTPConnection(self.conf.domain)
+                        connection = http.client.HTTPConnection(self.conf.domain)
                         connection.request("GET", myurlpath)
                     response = json.loads(connection.getresponse().read())
                     result = xpath_get(response, myjsonpath)
@@ -133,26 +131,7 @@ class CtbExchange(object):
                         float(result),
                     )
                     results.append(float(result))
-
-                except urllib2.URLError as e:
-                    lg.error(
-                        "CtbExchange::get_ticker_value(%s, %s, %s): %s",
-                        self.conf.domain,
-                        _name1,
-                        _name2,
-                        e,
-                    )
-                    return None
-                except urllib2.HTTPError as e:
-                    lg.error(
-                        "CtbExchange::get_ticker_value(%s, %s, %s): %s",
-                        self.conf.domain,
-                        _name1,
-                        _name2,
-                        e,
-                    )
-                    return None
-                except Exception as e:
+                except (http.client.HTTPException, Exception) as e:
                     lg.error(
                         "CtbExchange::get_ticker_value(%s, %s, %s): %s",
                         self.conf.domain,

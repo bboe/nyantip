@@ -30,7 +30,8 @@ from jinja2 import Environment, PackageLoader
 from praw.errors import RateLimitExceeded
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 
-from ctb import ctb_action, ctb_coin, ctb_db, ctb_exchange, ctb_log, ctb_misc, ctb_user
+from ctb import (ctb_action, ctb_coin, ctb_db, ctb_exchange, ctb_log, ctb_misc,
+                 ctb_user)
 
 # Configure CointipBot logger
 logging.basicConfig()
