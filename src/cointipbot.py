@@ -62,27 +62,27 @@ class CointipBot(object):
 
         # Get handlers
         handlers = {}
-        for l in levels:
-            if self.conf.logs.levels[l].enabled:
-                handlers[l] = logging.FileHandler(
-                    self.conf.logs.levels[l].filename,
-                    mode="a" if self.conf.logs.levels[l].append else "w",
+        for level in levels:
+            if self.conf.logs.levels[level].enabled:
+                handlers[level] = logging.FileHandler(
+                    self.conf.logs.levels[level].filename,
+                    mode="a" if self.conf.logs.levels[level].append else "w",
                 )
-                handlers[l].setFormatter(
-                    logging.Formatter(self.conf.logs.levels[l].format)
+                handlers[level].setFormatter(
+                    logging.Formatter(self.conf.logs.levels[level].format)
                 )
 
         # Set handlers
-        for l in levels:
-            if handlers.has_key(l):
-                level = (
+        for level in levels:
+            if handlers.has_key(level):
+                level_to_set = (
                     logging.WARNING
-                    if l == "warning"
-                    else (logging.INFO if l == "info" else logging.DEBUG)
+                    if level == "warning"
+                    else (logging.INFO if level == "info" else logging.DEBUG)
                 )
-                handlers[l].addFilter(ctb_log.LevelFilter(level))
-                lg.addHandler(handlers[l])
-                bt.addHandler(handlers[l])
+                handlers[level].addFilter(ctb_log.LevelFilter(level_to_set))
+                lg.addHandler(handlers[level])
+                bt.addHandler(handlers[level])
 
         # Set default levels
         lg.setLevel(logging.DEBUG)
