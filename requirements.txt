@@ -1,0 +1,6 @@
+Jinja2
+mysqlclient
+PyYAML
+praw == 3.6.2
+sqlalchemy
+https://github.com/dpifke/pifkoin/archive/master.tar.gz
