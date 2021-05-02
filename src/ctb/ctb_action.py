@@ -20,7 +20,7 @@ import re
 
 from . import ctb_misc, ctb_stats, ctb_user
 
-logger = logging.getLogger("cointipbot")
+logger = logging.getLogger("ctb.action")
 
 
 class CtbAction(object):
@@ -72,7 +72,7 @@ class CtbAction(object):
         """
         Initialize CtbAction object with given parameters and run basic checks
         """
-        logger.debug("> CtbAction::__init__(type=%s)", atype)
+        logger.debug("__init__(type=%s)", atype)
 
         self.type = atype
 
@@ -98,27 +98,25 @@ class CtbAction(object):
 
         # Do some checks
         if not self.type:
-            raise Exception("CtbAction::__init__(type=?): type not set")
+            raise Exception("__init__(type=?): type not set")
         if not self.ctb:
-            raise Exception(
-                "CtbAction::__init__(type=%s): no reference to CointipBot", self.type
-            )
+            raise Exception("__init__(type=%s): no reference to CointipBot", self.type)
         #        if not self.msg:
-        #            raise Exception("CtbAction::__init__(type=%s): no reference to Reddit message/comment", self.type)
+        #            raise Exception("__init__(type=%s): no reference to Reddit message/comment", self.type)
         if self.type in ["givetip", "withdraw"]:
             if not (bool(self.u_to) ^ bool(self.addr_to)):
                 raise Exception(
-                    "CtbAction::__init__(atype=%s, from_user=%s): u_to xor addr_to must be set"
+                    "__init__(atype=%s, from_user=%s): u_to xor addr_to must be set"
                     % (self.type, self.u_from.name)
                 )
             if not (bool(self.coin) or bool(self.fiat) or bool(self.keyword)):
                 raise Exception(
-                    "CtbAction::__init__(atype=%s, from_user=%s): coin or fiat or keyword must be set"
+                    "__init__(atype=%s, from_user=%s): coin or fiat or keyword must be set"
                     % (self.type, self.u_from.name)
                 )
             if not (bool(self.coinval) or bool(self.fiatval) or bool(self.keyword)):
                 raise Exception(
-                    "CtbAction::__init__(atype=%s, from_user=%s): coinval or fiatval or keyword must be set"
+                    "__init__(atype=%s, from_user=%s): coinval or fiatval or keyword must be set"
                     % (self.type, self.u_from.name)
                 )
 
@@ -136,7 +134,7 @@ class CtbAction(object):
         ):
             self.fiatval = float(self.fiatval)
 
-        logger.debug("CtbAction::__init__(): %s", self)
+        logger.debug("__init__(): %s", self)
 
         # Determine coinval or fiatval, if keyword is given instead of numeric value
         if self.type in ["givetip", "withdraw"]:
@@ -168,24 +166,24 @@ class CtbAction(object):
             if self.keyword and self.fiat and not type(self.fiatval) in [float, int]:
                 # Determine fiat value
                 logger.debug(
-                    "CtbAction::__init__(): determining fiat value given '%s'",
+                    "__init__(): determining fiat value given '%s'",
                     self.keyword,
                 )
                 val = self.ctb.conf.keywords[self.keyword].value
                 if type(val) == float:
                     self.fiatval = val
                 elif type(val) == str:
-                    logger.debug("CtbAction::__init__(): evaluating '%s'", val)
+                    logger.debug("__init__(): evaluating '%s'", val)
                     self.fiatval = eval(val)
                     if not type(self.fiatval) == float:
                         logger.warning(
-                            "CtbAction::__init__(atype=%s, from_user=%s): couldn't determine fiatval from keyword '%s' (not float)"
+                            "__init__(atype=%s, from_user=%s): couldn't determine fiatval from keyword '%s' (not float)"
                             % (self.type, self.u_from.name, self.keyword)
                         )
                         return None
                 else:
                     logger.warning(
-                        "CtbAction::__init__(atype=%s, from_user=%s): couldn't determine fiatval from keyword '%s' (not float or str)"
+                        "__init__(atype=%s, from_user=%s): couldn't determine fiatval from keyword '%s' (not float or str)"
                         % (self.type, self.u_from.name, self.keyword)
                     )
                     return None
@@ -193,24 +191,24 @@ class CtbAction(object):
             elif self.keyword and self.coin and not type(self.coinval) in [float, int]:
                 # Determine coin value
                 logger.debug(
-                    "CtbAction::__init__(): determining coin value given '%s'",
+                    "__init__(): determining coin value given '%s'",
                     self.keyword,
                 )
                 val = self.ctb.conf.keywords[self.keyword].value
                 if type(val) == float:
                     self.coinval = val
                 elif type(val) == str:
-                    logger.debug("CtbAction::__init__(): evaluating '%s'", val)
+                    logger.debug("__init__(): evaluating '%s'", val)
                     self.coinval = eval(val)
                     if not type(self.coinval) == float:
                         logger.warning(
-                            "CtbAction::__init__(atype=%s, from_user=%s): couldn't determine coinval from keyword '%s' (not float)"
+                            "__init__(atype=%s, from_user=%s): couldn't determine coinval from keyword '%s' (not float)"
                             % (self.type, self.u_from.name, self.keyword)
                         )
                         return None
                 else:
                     logger.warning(
-                        "CtbAction::__init__(atype=%s, from_user=%s): couldn't determine coinval from keyword '%s' (not float or str)"
+                        "__init__(atype=%s, from_user=%s): couldn't determine coinval from keyword '%s' (not float or str)"
                         % (self.type, self.u_from.name, self.keyword)
                     )
                     return None
@@ -221,7 +219,7 @@ class CtbAction(object):
                 int,
             ]:
                 raise Exception(
-                    "CtbAction::__init__(atype=%s, from_user=%s): coinval or fiatval isn't determined"
+                    "__init__(atype=%s, from_user=%s): coinval or fiatval isn't determined"
                     % (self.type, self.u_from.name)
                 )
 
@@ -229,13 +227,13 @@ class CtbAction(object):
         if self.type in ["givetip"]:
             if self.fiat and not self.coin:
                 logger.debug(
-                    "CtbAction::__init__(atype=%s, from_user=%s): determining coin..."
+                    "__init__(atype=%s, from_user=%s): determining coin..."
                     % (self.type, self.u_from.name)
                 )
                 if not self.u_from.is_registered():
                     # Can't proceed, abort
                     logger.warning(
-                        "CtbAction::__init__(): can't determine coin for un-registered user %s",
+                        "__init__(): can't determine coin for un-registered user %s",
                         self.u_from.name,
                     )
                     return None
@@ -243,7 +241,7 @@ class CtbAction(object):
                 cc = self.ctb.conf["coins"]
                 for c in sorted(self.ctb.coins):
                     logger.debug(
-                        "CtbAction::__init__(atype=%s, from_user=%s): considering %s"
+                        "__init__(atype=%s, from_user=%s): considering %s"
                         % (self.type, self.u_from.name, c)
                     )
                     # First, check if we have a ticker value for this coin and fiat
@@ -266,7 +264,7 @@ class CtbAction(object):
             if not self.coin:
                 # Couldn't deteremine coin, abort
                 logger.warning(
-                    "CtbAction::__init__(): can't determine coin for user %s",
+                    "__init__(): can't determine coin for user %s",
                     self.u_from.name,
                 )
                 return None
@@ -288,7 +286,7 @@ class CtbAction(object):
                 )
 
         logger.debug(
-            "< CtbAction::__init__(atype=%s, from_user=%s) DONE",
+            "__init__(atype=%s, from_user=%s) DONE",
             self.type,
             self.u_from.name,
         )
@@ -317,7 +315,7 @@ class CtbAction(object):
         """
         Save action to database
         """
-        logger.debug("> CtbAction::save(%s)", state)
+        logger.debug("save(%s)", state)
 
         # Make sure no negative values exist
         if self.coinval < 0.0:
@@ -363,7 +361,7 @@ class CtbAction(object):
                 raise Exception("query didn't affect any rows")
         except Exception as e:
             logger.error(
-                "CtbAction::save(%s): error executing query <%s>: %s",
+                "save(%s): error executing query <%s>: %s",
                 state,
                 sql
                 % (
@@ -386,20 +384,20 @@ class CtbAction(object):
             )
             raise
 
-        logger.debug("< CtbAction::save() DONE")
+        logger.debug("save() DONE")
         return True
 
     def do(self):
         """
         Call appropriate function depending on action type
         """
-        logger.debug("> CtbAction::do()")
+        logger.debug("do()")
 
         if not self.ctb.conf["regex"]["actions"][self.type].enabled:
             msg = self.ctb.jenv.get_template("command-disabled.tpl").render(
                 a=self, ctb=self.ctb
             )
-            logger.info("CtbAction::do(): action %s is disabled", self.type)
+            logger.info("do(): action %s is disabled", self.type)
             ctb_misc.praw_call(self.msg.reply, msg)
             return False
 
@@ -442,7 +440,7 @@ class CtbAction(object):
         if self.type == "rates":
             return self.rates()
 
-        logger.debug("< CtbAction::do() DONE")
+        logger.debug("do() DONE")
         return None
 
     def history(self):
@@ -472,7 +470,7 @@ class CtbAction(object):
         msg = self.ctb.jenv.get_template("history.tpl").render(
             history=history, keys=mysqlexec.keys(), limit=limit, a=self, ctb=self.ctb
         )
-        logger.debug("CtbAction::history(): %s", msg)
+        logger.debug("history(): %s", msg)
         ctb_misc.praw_call(self.msg.reply, msg)
         return True
 
@@ -480,12 +478,12 @@ class CtbAction(object):
         """
         Accept pending tip
         """
-        logger.debug("> CtbAction::accept()")
+        logger.debug("accept()")
 
         # Register as new user if necessary
         if not self.u_from.is_registered():
             if not self.u_from.register():
-                logger.warning("CtbAction::accept(): self.u_from.register() failed")
+                logger.warning("accept(): self.u_from.register() failed")
                 self.save("failed")
                 return False
 
@@ -505,20 +503,20 @@ class CtbAction(object):
             msg = self.ctb.jenv.get_template("no-pending-tips.tpl").render(
                 user_from=self.u_from.name, a=self, ctb=self.ctb
             )
-            logger.debug("CtbAction::accept(): %s", msg)
+            logger.debug("accept(): %s", msg)
             ctb_misc.praw_call(self.msg.reply, msg)
 
         # Save action to database
         self.save("completed")
 
-        logger.debug("< CtbAction::accept() DONE")
+        logger.debug("accept() DONE")
         return True
 
     def decline(self):
         """
         Decline pending tips
         """
-        logger.debug("> CtbAction::decline()")
+        logger.debug("decline()")
 
         actions = get_actions(
             atype="givetip", to_user=self.u_from.name, state="pending", ctb=self.ctb
@@ -527,7 +525,7 @@ class CtbAction(object):
             for a in actions:
                 # Move coins back into a.u_from account
                 logger.info(
-                    "CtbAction::decline(): moving %s %s from %s to %s",
+                    "decline(): moving %s %s from %s to %s",
                     a.coinval,
                     a.coin.upper(),
                     self.ctb.conf.reddit.auth.user,
@@ -538,7 +536,7 @@ class CtbAction(object):
                     _userto=a.u_from.name,
                     _amount=a.coinval,
                 ):
-                    raise Exception("CtbAction::decline(): failed to sendtouser()")
+                    raise Exception("decline(): failed to sendtouser()")
 
                 # Save transaction as declined
                 a.save("declined")
@@ -554,7 +552,7 @@ class CtbAction(object):
                     ctb=a.ctb,
                     source_link=ctb_misc.permalink(a.msg),
                 )
-                logger.debug("CtbAction::decline(): " + msg)
+                logger.debug("decline(): " + msg)
                 if self.ctb.conf.reddit.messages.declined:
                     if not ctb_misc.praw_call(a.msg.reply, msg):
                         a.u_from.tell(subj="+tip declined", msg=msg)
@@ -565,31 +563,31 @@ class CtbAction(object):
             msg = self.ctb.jenv.get_template("pending-tips-declined.tpl").render(
                 user_from=self.u_from.name, ctb=self.ctb
             )
-            logger.debug("CtbAction::decline(): %s", msg)
+            logger.debug("decline(): %s", msg)
             ctb_misc.praw_call(self.msg.reply, msg)
 
         else:
             msg = self.ctb.jenv.get_template("no-pending-tips.tpl").render(
                 user_from=self.u_from.name, ctb=self.ctb
             )
-            logger.debug("CtbAction::decline(): %s", msg)
+            logger.debug("decline(): %s", msg)
             ctb_misc.praw_call(self.msg.reply, msg)
 
         # Save action to database
         self.save("completed")
 
-        logger.debug("< CtbAction::decline() DONE")
+        logger.debug("decline() DONE")
         return True
 
     def expire(self):
         """
         Expire a pending tip
         """
-        logger.debug("> CtbAction::expire()")
+        logger.debug("expire()")
 
         # Move coins back into self.u_from account
         logger.info(
-            "CtbAction::expire(): moving %s %s from %s to %s",
+            "expire(): moving %s %s from %s to %s",
             self.coinval,
             self.coin.upper(),
             self.ctb.conf.reddit.auth.user,
@@ -600,7 +598,7 @@ class CtbAction(object):
             _userto=self.u_from.name,
             _amount=self.coinval,
         ):
-            raise Exception("CtbAction::expire(): sendtouser() failed")
+            raise Exception("expire(): sendtouser() failed")
 
         # Save transaction as expired
         self.save("expired")
@@ -616,21 +614,21 @@ class CtbAction(object):
             ctb=self.ctb,
             source_link=ctb_misc.permalink(self.msg),
         )
-        logger.debug("CtbAction::expire(): " + msg)
+        logger.debug("expire(): " + msg)
         if self.ctb.conf.reddit.messages.expired:
             if not ctb_misc.praw_call(self.msg.reply, msg):
                 self.u_from.tell(subj="+tip expired", msg=msg)
         else:
             self.u_from.tell(subj="+tip expired", msg=msg)
 
-        logger.debug("< CtbAction::expire() DONE")
+        logger.debug("expire() DONE")
         return True
 
     def validate(self, is_pending=False):
         """
         Validate an action
         """
-        logger.debug("> CtbAction::validate()")
+        logger.debug("validate()")
 
         if self.type in ["givetip", "withdraw"]:
             # Check if u_from has registered
@@ -638,7 +636,7 @@ class CtbAction(object):
                 msg = self.ctb.jenv.get_template("not-registered.tpl").render(
                     a=self, ctb=self.ctb
                 )
-                logger.debug("CtbAction::validate(): %s", msg)
+                logger.debug("validate(): %s", msg)
                 self.u_from.tell(subj="+tip failed", msg=msg)
                 self.save("failed")
                 return False
@@ -647,7 +645,7 @@ class CtbAction(object):
                 msg = self.ctb.jenv.get_template("not-on-reddit.tpl").render(
                     a=self, ctb=self.ctb
                 )
-                logger.debug("CtbAction::validate(): %s", msg)
+                logger.debug("validate(): %s", msg)
                 self.u_from.tell(subj="+tip failed", msg=msg)
                 self.save("failed")
                 return False
@@ -657,7 +655,7 @@ class CtbAction(object):
                 msg = self.ctb.jenv.get_template("no-coin-balances.tpl").render(
                     a=self, ctb=self.ctb
                 )
-                logger.debug("CtbAction::validate(): %s", msg)
+                logger.debug("validate(): %s", msg)
                 self.u_from.tell(subj="+tip failed", msg=msg)
                 self.save("failed")
                 return False
@@ -665,7 +663,7 @@ class CtbAction(object):
             # Verify that u_from has coin address
             if not self.u_from.get_addr(coin=self.coin):
                 logger.error(
-                    "CtbAction::validate(): user %s doesn't have %s address",
+                    "validate(): user %s doesn't have %s address",
                     self.u_from.name,
                     self.coin.upper(),
                 )
@@ -680,7 +678,7 @@ class CtbAction(object):
                     a=self,
                     ctb=self.ctb,
                 )
-                logger.debug("CtbAction::validate(): " + msg)
+                logger.debug("validate(): " + msg)
                 self.u_from.tell(subj="+tip failed", msg=msg)
                 self.save("failed")
                 return False
@@ -696,7 +694,7 @@ class CtbAction(object):
                     msg = self.ctb.jenv.get_template("tip-low-balance.tpl").render(
                         balance=balance_avail, action_name="tip", a=self, ctb=self.ctb
                     )
-                    logger.debug("CtbAction::validate(): " + msg)
+                    logger.debug("validate(): " + msg)
                     self.u_from.tell(subj="+tip failed", msg=msg)
                     self.save("failed")
                     return False
@@ -716,7 +714,7 @@ class CtbAction(object):
                         a=self,
                         ctb=self.ctb,
                     )
-                    logger.debug("CtbAction::validate(): " + msg)
+                    logger.debug("validate(): " + msg)
                     self.u_from.tell(subj="+tip failed", msg=msg)
                     self.save("failed")
                     return False
@@ -735,7 +733,7 @@ class CtbAction(object):
                     msg = self.ctb.jenv.get_template("tip-already-pending.tpl").render(
                         a=self, ctb=self.ctb
                     )
-                    logger.debug("CtbAction::validate(): " + msg)
+                    logger.debug("validate(): " + msg)
                     self.u_from.tell(subj="+tip failed", msg=msg)
                     self.save("failed")
                     return False
@@ -750,7 +748,7 @@ class CtbAction(object):
                 # Move coins into pending account
                 minconf = self.ctb.coins[self.coin].conf.minconf.givetip
                 logger.info(
-                    "CtbAction::validate(): moving %s %s from %s to %s (minconf=%s)...",
+                    "validate(): moving %s %s from %s to %s (minconf=%s)...",
                     self.coinval,
                     self.coin.upper(),
                     self.u_from.name,
@@ -763,7 +761,7 @@ class CtbAction(object):
                     _amount=self.coinval,
                     _minconf=minconf,
                 ):
-                    raise Exception("CtbAction::validate(): sendtouser() failed")
+                    raise Exception("validate(): sendtouser() failed")
 
                 # Save action as pending
                 self.save("pending")
@@ -772,7 +770,7 @@ class CtbAction(object):
                 msg = self.ctb.jenv.get_template("confirmation.tpl").render(
                     title="verified^nyan", a=self, ctb=self.ctb
                 )
-                logger.debug("CtbAction::validate(): " + msg)
+                logger.debug("validate(): " + msg)
                 if self.ctb.conf["reddit"]["messages"]["verified"]:
                     if not ctb_misc.praw_call(self.msg.reply, msg):
                         self.u_from.tell(subj="+tip pending +accept", msg=msg)
@@ -783,7 +781,7 @@ class CtbAction(object):
                 msg = self.ctb.jenv.get_template("tip-incoming.tpl").render(
                     a=self, ctb=self.ctb
                 )
-                logger.debug("CtbAction::validate(): %s", msg)
+                logger.debug("validate(): %s", msg)
                 self.u_to.tell(subj="+tip pending", msg=msg)
 
                 # Action saved as 'pending', return false to avoid processing it further
@@ -795,20 +793,20 @@ class CtbAction(object):
                     msg = self.ctb.jenv.get_template("address-invalid.tpl").render(
                         a=self, ctb=self.ctb
                     )
-                    logger.debug("CtbAction::validate(): " + msg)
+                    logger.debug("validate(): " + msg)
                     self.u_from.tell(subj="+tip failed", msg=msg)
                     self.save("failed")
                     return False
 
         # Action is valid
-        logger.debug("< CtbAction::validate() DONE")
+        logger.debug("validate() DONE")
         return True
 
     def givetip(self, is_pending=False):
         """
         Initiate tip
         """
-        logger.debug("> CtbAction::givetip()")
+        logger.debug("givetip()")
 
         if self.msg:
             my_id = self.msg.id
@@ -821,7 +819,7 @@ class CtbAction(object):
         ):
             # Found action in database, returning
             logger.warning(
-                "CtbAction::givetipt(): duplicate action %s (msg.id %s), ignoring",
+                "givetipt(): duplicate action %s (msg.id %s), ignoring",
                 self.type,
                 my_id,
             )
@@ -839,7 +837,7 @@ class CtbAction(object):
             if is_pending:
                 # This is accept() of pending transaction, so move coins from pending account to receiver
                 logger.info(
-                    "CtbAction::givetip(): moving %f %s from %s to %s...",
+                    "givetip(): moving %f %s from %s to %s...",
                     self.coinval,
                     self.coin.upper(),
                     self.ctb.conf.reddit.auth.user,
@@ -853,7 +851,7 @@ class CtbAction(object):
             else:
                 # This is not accept() of pending transaction, so move coins from tipper to receiver
                 logger.info(
-                    "CtbAction::givetip(): moving %f %s from %s to %s...",
+                    "givetip(): moving %f %s from %s to %s...",
                     self.coinval,
                     self.coin.upper(),
                     self.u_from.name,
@@ -875,7 +873,7 @@ class CtbAction(object):
                 )
                 self.u_from.tell(subj="+tip failed", msg=msg)
 
-                raise Exception("CtbAction::givetip(): sendtouser() failed")
+                raise Exception("givetip(): sendtouser() failed")
 
             # Transaction succeeded
             self.save("completed")
@@ -884,14 +882,14 @@ class CtbAction(object):
             msg = self.ctb.jenv.get_template("tip-received.tpl").render(
                 a=self, ctb=self.ctb
             )
-            logger.debug("CtbAction::givetip(): " + msg)
+            logger.debug("givetip(): " + msg)
             self.u_to.tell(subj="+tip received", msg=msg)
 
             # Send confirmation to u_from
             msg = self.ctb.jenv.get_template("tip-sent.tpl").render(
                 a=self, ctb=self.ctb
             )
-            logger.debug("CtbAction::givetip(): " + msg)
+            logger.debug("givetip(): " + msg)
             self.u_from.tell(subj="+tip sent", msg=msg)
 
             # This is not accept() of pending transaction, so post verification comment
@@ -899,21 +897,21 @@ class CtbAction(object):
                 msg = self.ctb.jenv.get_template("confirmation.tpl").render(
                     title="verified^nyan", a=self, ctb=self.ctb
                 )
-                logger.debug("CtbAction::givetip(): " + msg)
+                logger.debug("givetip(): " + msg)
                 if self.ctb.conf["reddit"]["messages"]["verified"]:
                     if not ctb_misc.praw_call(self.msg.reply, msg):
                         self.u_from.tell(subj="+tip succeeded", msg=msg)
                 else:
                     self.u_from.tell(subj="+tip succeeded", msg=msg)
 
-            logger.debug("< CtbAction::givetip() DONE")
+            logger.debug("givetip() DONE")
             return True
 
         elif self.addr_to:
             # Process tip to address
             try:
                 logger.info(
-                    "CtbAction::givetip(): sending %f %s to %s...",
+                    "givetip(): sending %f %s to %s...",
                     self.coinval,
                     self.coin,
                     self.addr_to,
@@ -928,7 +926,7 @@ class CtbAction(object):
 
                 # Transaction failed
                 self.save("failed")
-                logger.error("CtbAction::givetip(): sendtoaddr() failed")
+                logger.error("givetip(): sendtoaddr() failed")
 
                 # Send notice to u_from
                 msg = self.ctb.jenv.get_template("tip-went-wrong.tpl").render(
@@ -945,24 +943,24 @@ class CtbAction(object):
             msg = self.ctb.jenv.get_template("confirmation.tpl").render(
                 title="verified^nyan", a=self, ctb=self.ctb
             )
-            logger.debug("CtbAction::givetip(): " + msg)
+            logger.debug("givetip(): " + msg)
             if self.ctb.conf["reddit"]["messages"]["verified"]:
                 if not ctb_misc.praw_call(self.msg.reply, msg):
                     self.u_from.tell(subj="+tip succeeded", msg=msg)
             else:
                 self.u_from.tell(subj="+tip succeeded", msg=msg)
 
-            logger.debug("< CtbAction::givetip() DONE")
+            logger.debug("givetip() DONE")
             return True
 
-        logger.debug("< CtbAction::givetip() DONE")
+        logger.debug("givetip() DONE")
         return None
 
     def info(self):
         """
         Send user info about account
         """
-        logger.debug("> CtbAction::info()")
+        logger.debug("info()")
 
         # Check if user exists
         if not self.u_from.is_registered():
@@ -988,7 +986,7 @@ class CtbAction(object):
                 info.append(coininfo)
             except Exception as e:
                 logger.error(
-                    "CtbAction::info(%s): error retrieving %s coininfo: %s",
+                    "info(%s): error retrieving %s coininfo: %s",
                     self.u_from.name,
                     c,
                     e,
@@ -1014,7 +1012,7 @@ class CtbAction(object):
             mysqlrow = self.ctb.db.execute(sql).fetchone()
             if not mysqlrow:
                 raise Exception(
-                    "CtbAction::info(%s): no result from <%s>" % (self.u_from.name, sql)
+                    "info(%s): no result from <%s>" % (self.u_from.name, sql)
                 )
             i.address = mysqlrow["address"]
 
@@ -1031,19 +1029,19 @@ class CtbAction(object):
         # Save action to database
         self.save("completed")
 
-        logger.debug("< CtbAction::info() DONE")
+        logger.debug("info() DONE")
         return True
 
     def register(self):
         """
         Register a new user
         """
-        logger.debug("> CtbAction::register()")
+        logger.debug("register()")
 
         # If user exists, do nothing
         if self.u_from.is_registered():
             logger.debug(
-                "CtbAction::register(%s): user already exists; ignoring request",
+                "register(%s): user already exists; ignoring request",
                 self.u_from.name,
             )
             self.save("failed")
@@ -1054,21 +1052,21 @@ class CtbAction(object):
         # Save action to database
         self.save("completed")
 
-        logger.debug("< CtbAction::register() DONE")
+        logger.debug("register() DONE")
         return result
 
     def redeem(self):
         """
         Redeem karma for coins
         """
-        logger.debug("> CtbAction::redeem()")
+        logger.debug("redeem()")
 
         # Check if user is registered
         if not self.u_from.is_registered():
             msg = self.ctb.jenv.get_template("not-registered.tpl").render(
                 a=self, ctb=self.ctb
             )
-            logger.debug("CtbAction::redeem(): %s", msg)
+            logger.debug("redeem(): %s", msg)
             ctb_misc.praw_call(self.msg.reply, msg)
             self.save("failed")
             return False
@@ -1100,7 +1098,7 @@ class CtbAction(object):
                 a=self,
                 ctb=self.ctb,
             )
-            logger.debug("CtbAction::redeem(): %s", msg)
+            logger.debug("redeem(): %s", msg)
             ctb_misc.praw_call(self.msg.reply, msg)
             self.save("failed")
             return False
@@ -1113,7 +1111,7 @@ class CtbAction(object):
             msg = self.ctb.jenv.get_template("redeem-low-karma.tpl").render(
                 user_karma=user_karma, a=self, ctb=self.ctb
             )
-            logger.debug("CtbAction::redeem(): %s", msg)
+            logger.debug("redeem(): %s", msg)
             ctb_misc.praw_call(self.msg.reply, msg)
             self.save("failed")
             return False
@@ -1134,7 +1132,7 @@ class CtbAction(object):
             msg = self.ctb.jenv.get_template("redeem-cant-compute.tpl").render(
                 a=self, ctb=self.ctb
             )
-            logger.debug("CtbAction::redeem(): %s", msg)
+            logger.debug("redeem(): %s", msg)
             ctb_misc.praw_call(self.msg.reply, msg)
             self.save("failed")
             return False
@@ -1148,7 +1146,7 @@ class CtbAction(object):
             msg = self.ctb.jenv.get_template("redeem-low-funds.tpl").render(
                 a=self, ctb=self.ctb
             )
-            logger.debug("CtbAction::redeem(): %s", msg)
+            logger.debug("redeem(): %s", msg)
             ctb_misc.praw_call(self.msg.reply, msg)
             self.save("failed")
             return False
@@ -1164,18 +1162,18 @@ class CtbAction(object):
             msg = self.ctb.jenv.get_template("redeem-confirmation.tpl").render(
                 a=self, ctb=self.ctb
             )
-            logger.debug("CtbAction::redeem(): %s", msg)
+            logger.debug("redeem(): %s", msg)
             ctb_misc.praw_call(self.msg.reply, msg)
             self.save("completed")
             return True
         else:
-            raise Exception("CtbAction::redeem(): sendtouser failed")
+            raise Exception("redeem(): sendtouser failed")
 
     def rates(self, fiat="usd"):
         """
         Send info on coin exchange rates
         """
-        logger.debug("> CtbAction::rates()")
+        logger.debug("rates()")
 
         coins = []
         exchanges = []
@@ -1221,7 +1219,7 @@ class CtbAction(object):
                     msg = self.ctb.jenv.get_template("rates-error.tpl").render(
                         exchange=exchange, a=self, ctb=self.ctb
                     )
-                    logger.debug("CtbAction::rates(): %s", msg)
+                    logger.debug("rates(): %s", msg)
                     ctb_misc.praw_call(self.msg.reply, msg)
                     self.save("failed")
                     return False
@@ -1229,7 +1227,7 @@ class CtbAction(object):
         for exchange in self.ctb.exchanges:
             exchanges.append(exchange)
 
-        logger.debug("CtbAction::rates(): %s", rates)
+        logger.debug("rates(): %s", rates)
 
         # Send message
         msg = self.ctb.jenv.get_template("rates.tpl").render(
@@ -1240,7 +1238,7 @@ class CtbAction(object):
             a=self,
             ctb=self.ctb,
         )
-        logger.debug("CtbAction::rates(): %s", msg)
+        logger.debug("rates(): %s", msg)
         ctb_misc.praw_call(self.msg.reply, msg)
         self.save("completed")
         return True
@@ -1250,7 +1248,7 @@ def init_regex(ctb):
     """
     Initialize regular expressions used to match messages and comments
     """
-    logger.debug("> init_regex()")
+    logger.debug("init_regex()")
 
     cc = ctb.conf["coins"]
     fiats = ctb.conf["fiat"]
@@ -1402,7 +1400,7 @@ def init_regex(ctb):
                     )
                     ctb.runtime["regex"].append(entry)
 
-    logger.info("< init_regex() DONE (%s expressions)", len(ctb.runtime["regex"]))
+    logger.info("init_regex() DONE (%s expressions)", len(ctb.runtime["regex"]))
     return None
 
 
@@ -1411,7 +1409,7 @@ def eval_message(msg, ctb):
     Evaluate message body and return a CtbAction
     object if successful
     """
-    logger.debug("> eval_message()")
+    logger.debug("eval_message()")
 
     body = msg.body
     for r in ctb.runtime["regex"]:
@@ -1458,7 +1456,7 @@ def eval_comment(comment, ctb):
     """
     Evaluate comment body and return a CtbAction object if successful
     """
-    logger.debug("> eval_comment()")
+    logger.debug("eval_comment()")
 
     body = comment.body
     for r in ctb.runtime["regex"]:
@@ -1503,7 +1501,7 @@ def eval_comment(comment, ctb):
                 "eval_comment(): creating action %s: to_user=%s, to_addr=%s, amount=%s, coin=%s, fiat=%s"
                 % (r.action, u_to, to_addr, amount, r.coin, r.fiat)
             )
-            # logger.debug("< eval_comment() DONE (yes)")
+            # logger.debug("eval_comment() DONE (yes)")
             return CtbAction(
                 atype=r.action,
                 msg=comment,
@@ -1519,7 +1517,7 @@ def eval_comment(comment, ctb):
             )
 
     # No match found
-    logger.debug("< eval_comment() DONE (no match)")
+    logger.debug("eval_comment() DONE (no match)")
     return None
 
 
@@ -1538,7 +1536,7 @@ def check_action(
     """
     Return True if action with given attributes exists in database
     """
-    logger.debug("> check_action(%s)", atype)
+    logger.debug("check_action(%s)", atype)
 
     # Build SQL query
     sql = "SELECT * FROM t_action"
@@ -1579,16 +1577,16 @@ def check_action(
         logger.debug("check_action(): <%s>", sql)
         mysqlexec = ctb.db.execute(sql)
         if mysqlexec.rowcount <= 0:
-            logger.debug("< check_action() DONE (no)")
+            logger.debug("check_action() DONE (no)")
             return False
         else:
-            logger.debug("< check_action() DONE (yes)")
+            logger.debug("check_action() DONE (yes)")
             return True
     except Exception as e:
         logger.error("check_action(): error executing <%s>: %s", sql, e)
         raise
 
-    logger.warning("< check_action() DONE (should not get here)")
+    logger.warning("check_action() DONE (should not get here)")
     return None
 
 
@@ -1608,7 +1606,7 @@ def get_actions(
     """
     Return an array of CtbAction objects from database with given attributes
     """
-    logger.debug("> get_actions(%s)", atype)
+    logger.debug("get_actions(%s)", atype)
 
     # Build SQL query
     sql = "SELECT * FROM t_action"
@@ -1644,7 +1642,7 @@ def get_actions(
             mysqlexec = ctb.db.execute(sql)
 
             if mysqlexec.rowcount <= 0:
-                logger.debug("< get_actions() DONE (no)")
+                logger.debug("get_actions() DONE (no)")
                 return r
 
             for m in mysqlexec:
@@ -1711,12 +1709,12 @@ def get_actions(
                     )
                 )
 
-            logger.debug("< get_actions() DONE (yes)")
+            logger.debug("get_actions() DONE (yes)")
             return r
 
         except Exception as e:
             logger.error("get_actions(): error executing <%s>: %s", sql, e)
             raise
 
-    logger.warning("< get_actions() DONE (should not get here)")
+    logger.warning("get_actions() DONE (should not get here)")
     return None

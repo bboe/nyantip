@@ -24,7 +24,7 @@ import time
 
 from . import ctb_misc
 
-logger = logging.getLogger("cointipbot")
+logger = logging.getLogger("ctb.stats")
 
 
 def update_stats(ctb=None):

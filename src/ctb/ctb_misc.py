@@ -22,7 +22,7 @@ from socket import timeout
 from praw.errors import RateLimitExceeded
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 
-logger = logging.getLogger("cointipbot")
+logger = logging.getLogger("ctb.misc")
 
 
 def praw_call(prawFunc, *extraArgs, **extraKwArgs):
@@ -61,7 +61,7 @@ def reddit_get_parent_author(comment, reddit, ctb):
     """
     Return author of comment's parent comment
     """
-    logger.debug("> reddit_get_parent_author()")
+    logger.debug("reddit_get_parent_author()")
 
     while True:
 
@@ -69,7 +69,7 @@ def reddit_get_parent_author(comment, reddit, ctb):
             parentcomment = reddit.get_info(thing_id=comment.parent_id)
             if hasattr(parentcomment, "author") and parentcomment.author:
                 logger.debug(
-                    "< reddit_get_parent_author(%s) -> %s",
+                    "reddit_get_parent_author(%s) -> %s",
                     comment.id,
                     parentcomment.author.name,
                 )
@@ -103,7 +103,7 @@ def get_value(conn, param0=None):
     """
     Fetch a value from t_values table
     """
-    logger.debug("> get_value()")
+    logger.debug("get_value()")
 
     if param0 is None:
         raise Exception("get_value(): param0 is None")
@@ -125,7 +125,7 @@ def get_value(conn, param0=None):
         logger.error("get_value(): error executing query <%s>: %s", sql % (param0), e)
         raise
 
-    logger.debug("< get_value() DONE (%s)", value)
+    logger.debug("get_value() DONE (%s)", value)
     return value
 
 
@@ -133,7 +133,7 @@ def set_value(conn, param0=None, value0=None):
     """
     Set a value in t_values table
     """
-    logger.debug("> set_value(%s, %s)", param0, value0)
+    logger.debug("set_value(%s, %s)", param0, value0)
 
     if param0 is None or value0 is None:
         raise Exception("set_value(): param0 is None or value0 is None")
@@ -154,5 +154,5 @@ def set_value(conn, param0=None, value0=None):
         )
         raise
 
-    logger.debug("< set_value() DONE")
+    logger.debug("set_value() DONE")
     return True

@@ -21,7 +21,7 @@ import cointipbot
 from ctb import ctb_stats
 
 logging.basicConfig()
-logger = logging.getLogger("cointipbot")
+logger = logging.getLogger("ctb")
 logger.setLevel(logging.DEBUG)
 
 ctb = cointipbot.CointipBot(

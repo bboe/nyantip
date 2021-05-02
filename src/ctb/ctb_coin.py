@@ -22,7 +22,7 @@ from http.client import CannotSendRequest
 
 from pifkoin.bitcoind import Bitcoind, BitcoindException
 
-logger = logging.getLogger("cointipbot")
+logger = logging.getLogger("ctb.coin")
 
 
 class CtbCoin(object):
@@ -45,36 +45,36 @@ class CtbCoin(object):
             or "config_file" not in _conf
             or "txfee" not in _conf
         ):
-            raise Exception("CtbCoin::__init__(): _conf is empty or invalid")
+            raise Exception("_conf is empty or invalid")
 
         self.conf = _conf
 
         # connect to coin daemon
         try:
-            logger.debug("CtbCoin::__init__(): connecting to %s...", self.conf["name"])
+            logger.debug("connecting to %s...", self.conf["name"])
             self.conn = Bitcoind(self.conf["config_file"])
         except BitcoindException as e:
             logger.error(
-                "CtbCoin::__init__(): error connecting to %s using %s: %s",
+                "error connecting to %s using %s: %s",
                 self.conf["name"],
                 self.conf["config_file"],
                 e,
             )
             raise
 
-        logger.info("CtbCoin::__init__():: connected to %s", self.conf["name"])
+        logger.info("connected to %s", self.conf["name"])
         time.sleep(0.5)
 
         # set transaction fee
-        # logger.info("Setting tx fee of %f", self.conf['txfee'])
-        # self.conn.settxfee(self.conf['txfee'])
+        logger.info("Setting tx fee of %f", self.conf["txfee"])
+        self.conn.settxfee(self.conf["txfee"])
 
     def getbalance(self, _user=None, _minconf=None):
         """
         Get user's tip or withdraw balance. _minconf is number of confirmations to use.
         Returns (float) balance
         """
-        logger.debug("CtbCoin::getbalance(%s, %s)", _user, _minconf)
+        logger.debug("getbalance(%s, %s)", _user, _minconf)
 
         user = self.verify_user(_user=_user)
         minconf = self.verify_minconf(_minconf=_minconf)
@@ -84,7 +84,7 @@ class CtbCoin(object):
             balance = self.conn.getbalance(user, minconf)
         except BitcoindException as e:
             logger.error(
-                "CtbCoin.getbalance(): error getting %s (minconf=%s) balance for %s: %s",
+                "getbalance(): error getting %s (minconf=%s) balance for %s: %s",
                 self.conf["name"],
                 minconf,
                 user,
@@ -100,7 +100,7 @@ class CtbCoin(object):
         Transfer (move) coins to user
         Returns (bool)
         """
-        logger.debug("CtbCoin::sendtouser(%s, %s, %s)", _userfrom, _userto, _amount)
+        logger.debug("sendtouser(%s, %s, %s)", _userfrom, _userto, _amount)
 
         userfrom = self.verify_user(_user=_userfrom)
         userto = self.verify_user(_user=_userto)
@@ -109,7 +109,7 @@ class CtbCoin(object):
         # send request to coin daemon
         try:
             logger.info(
-                "CtbCoin::sendtouser(): moving %s %s from %s to %s",
+                "sendtouser(): moving %s %s from %s to %s",
                 amount,
                 self.conf["name"],
                 userfrom,
@@ -119,7 +119,7 @@ class CtbCoin(object):
             time.sleep(0.5)
         except Exception as e:
             logger.error(
-                "CtbCoin::sendtouser(): error sending %s %s from %s to %s: %s",
+                "sendtouser(): error sending %s %s from %s to %s: %s",
                 amount,
                 self.conf["name"],
                 userfrom,
@@ -136,7 +136,7 @@ class CtbCoin(object):
         Send coins to address
         Returns (string) txid
         """
-        logger.debug("CtbCoin::sendtoaddr(%s, %s, %s)", _userfrom, _addrto, _amount)
+        logger.debug("sendtoaddr(%s, %s, %s)", _userfrom, _addrto, _amount)
 
         userfrom = self.verify_user(_user=_userfrom)
         addrto = self.verify_addr(_addr=_addrto)
@@ -147,7 +147,7 @@ class CtbCoin(object):
         # send request to coin daemon
         try:
             logger.info(
-                "CtbCoin::sendtoaddr(): sending %s %s from %s to %s",
+                "sendtoaddr(): sending %s %s from %s to %s",
                 amount,
                 self.conf["name"],
                 userfrom,
@@ -156,21 +156,21 @@ class CtbCoin(object):
 
             # Unlock wallet, if applicable
             if hasattr(self.conf, "walletpassphrase"):
-                logger.debug("CtbCoin::sendtoaddr(): unlocking wallet...")
+                logger.debug("sendtoaddr(): unlocking wallet...")
                 self.conn.walletpassphrase(self.conf["walletpassphrase"], 1)
 
             # Perform transaction
-            logger.debug("CtbCoin::sendtoaddr(): calling sendfrom()...")
+            logger.debug("sendtoaddr(): calling sendfrom()...")
             txid = self.conn.sendfrom(userfrom, addrto, amount, minconf)
 
             # Lock wallet, if applicable
             if hasattr(self.conf, "walletpassphrase"):
-                logger.debug("CtbCoin::sendtoaddr(): locking wallet...")
+                logger.debug("sendtoaddr(): locking wallet...")
                 self.conn.walletlock()
 
         except Exception as e:
             logger.error(
-                "CtbCoin::sendtoaddr(): error sending %s %s from %s to %s: %s",
+                "sendtoaddr(): error sending %s %s from %s to %s: %s",
                 amount,
                 self.conf["name"],
                 userfrom,
@@ -187,17 +187,17 @@ class CtbCoin(object):
         Verify that _addr is a valid coin address
         Returns (bool)
         """
-        logger.debug("CtbCoin::validateaddr(%s)", _addr)
+        logger.debug("validateaddr(%s)", _addr)
 
         addr = self.verify_addr(_addr=_addr)
         addr_valid = self.conn.validateaddress(addr)
         time.sleep(0.5)
 
         if "isvalid" not in addr_valid or not addr_valid["isvalid"]:
-            logger.debug("CtbCoin::validateaddr(%s): not valid", addr)
+            logger.debug("validateaddr(%s): not valid", addr)
             return False
         else:
-            logger.debug("CtbCoin::validateaddr(%s): valid", addr)
+            logger.debug("validateaddr(%s): valid", addr)
             return True
 
     def getnewaddr(self, _user=None):
@@ -224,19 +224,17 @@ class CtbCoin(object):
                     self.conn.walletlock()
 
                 if not addr:
-                    raise Exception("CtbCoin::getnewaddr(%s): empty addr", user)
+                    raise Exception("getnewaddr(%s): empty addr", user)
 
                 time.sleep(0.1)
                 return str(addr)
 
             except BitcoindException as e:
-                logger.error("CtbCoin::getnewaddr(%s): BitcoindException: %s", user, e)
+                logger.error("getnewaddr(%s): BitcoindException: %s", user, e)
                 raise
             except CannotSendRequest:
                 if counter < 3:
-                    logger.warning(
-                        "CtbCoin::getnewaddr(%s): CannotSendRequest, retrying"
-                    )
+                    logger.warning("getnewaddr(%s): CannotSendRequest, retrying")
                     counter += 1
                     time.sleep(10)
                     continue
@@ -244,12 +242,12 @@ class CtbCoin(object):
                     raise
             except Exception as e:
                 if str(e) == "timed out" and counter < 3:
-                    logger.warning("CtbCoin::getnewaddr(%s): timed out, retrying")
+                    logger.warning("getnewaddr(%s): timed out, retrying")
                     counter += 1
                     time.sleep(10)
                     continue
                 else:
-                    logger.error("CtbCoin::getnewaddr(%s): Exception: %s", user, e)
+                    logger.error("getnewaddr(%s): Exception: %s", user, e)
                     raise
 
     def verify_user(self, _user=None):
@@ -259,7 +257,7 @@ class CtbCoin(object):
 
         if not isinstance(_user, str):
             raise Exception(
-                "CtbCoin::verify_user(): _user wrong type (%s) or empty (%s)",
+                "verify_user(): _user wrong type (%s) or empty (%s)",
                 type(_user),
                 _user,
             )
@@ -273,7 +271,7 @@ class CtbCoin(object):
 
         if not isinstance(_addr, str):
             raise Exception(
-                "CtbCoin::verify_addr(): _addr wrong type (%s) or empty (%s)",
+                "verify_addr(): _addr wrong type (%s) or empty (%s)",
                 type(_addr),
                 _addr,
             )
@@ -287,7 +285,7 @@ class CtbCoin(object):
 
         if not _amount or not type(_amount) in [int, float] or not _amount > 0:
             raise Exception(
-                "CtbCoin::verify_amount(): _amount wrong type (%s), empty, or negative (%s)",
+                "verify_amount(): _amount wrong type (%s), empty, or negative (%s)",
                 type(_amount),
                 _amount,
             )
@@ -301,7 +299,7 @@ class CtbCoin(object):
 
         if not _minconf or not type(_minconf) == int or not _minconf >= 0:
             raise Exception(
-                "CtbCoin::verify_minconf(): _minconf wrong type (%s), empty, or negative (%s)",
+                "verify_minconf(): _minconf wrong type (%s), empty, or negative (%s)",
                 type(_minconf),
                 _minconf,
             )

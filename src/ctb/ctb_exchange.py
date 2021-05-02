@@ -19,7 +19,7 @@ import http.client
 import json
 import logging
 
-logger = logging.getLogger("cointipbot")
+logger = logging.getLogger("ctb.exchange")
 
 
 class CtbExchange(object):
@@ -42,7 +42,7 @@ class CtbExchange(object):
             or "coinlist" not in _conf
             or "fiatlist" not in _conf
         ):
-            raise Exception("CtbExchange::__init__(): _conf is empty or invalid")
+            raise Exception("__init__(): _conf is empty or invalid")
 
         self.conf = _conf
 
@@ -50,25 +50,23 @@ class CtbExchange(object):
         self.conf["coinlist"] = map(lambda x: x.lower(), self.conf["coinlist"])
         self.conf["fiatlist"] = map(lambda x: x.lower(), self.conf["fiatlist"])
 
-        logger.debug(
-            "CtbExchange::__init__(): initialized exchange %s" % self.conf["domain"]
-        )
+        logger.debug("__init__(): initialized exchange %s" % self.conf["domain"])
 
     def supports(self, _name=None):
         """
         Return True if exchange supports given coin/fiat _name
         """
 
-        if not _name or not type(_name) in [str, unicode]:
-            raise Exception("CtbExchange::supports(): _name is empty or wrong type")
+        if not isinstance(_name, str):
+            raise Exception("supports(): _name is empty or wrong type")
 
         name = str(_name).lower()
 
         if name in self.conf["coinlist"] or name in self.conf["fiatlist"]:
-            # logger.debug("CtbExchange::supports(%s): YES" % name)
+            # logger.debug("supports(%s): YES" % name)
             return True
         else:
-            # logger.debug("CtbExchange::supports(%s): NO" % name)
+            # logger.debug("supports(%s): NO" % name)
             return False
 
     def supports_pair(self, _name1=None, _name2=None):
@@ -88,7 +86,7 @@ class CtbExchange(object):
 
         if not self.supports_pair(_name1=_name1, _name2=_name2):
             raise Exception(
-                "CtbExchange::get_ticker_value(%s, %s, %s): pair not supported"
+                "get_ticker_value(%s, %s, %s): pair not supported"
                 % (self.conf["domain"], _name1, _name2)
             )
 
@@ -110,7 +108,7 @@ class CtbExchange(object):
 
                 try:
                     logger.debug(
-                        "CtbExchange::get_ticker_value(%s, %s, %s): calling %s to get %s...",
+                        "get_ticker_value(%s, %s, %s): calling %s to get %s...",
                         self.conf["domain"],
                         _name1,
                         _name2,
@@ -126,7 +124,7 @@ class CtbExchange(object):
                     response = json.loads(connection.getresponse().read())
                     result = xpath_get(response, myjsonpath)
                     logger.debug(
-                        "CtbExchange::get_ticker_value(%s, %s, %s): result: %.6f",
+                        "get_ticker_value(%s, %s, %s): result: %.6f",
                         self.conf["domain"],
                         _name1,
                         _name2,
@@ -135,7 +133,7 @@ class CtbExchange(object):
                     results.append(float(result))
                 except (http.client.HTTPException, Exception) as e:
                     logger.error(
-                        "CtbExchange::get_ticker_value(%s, %s, %s): %s",
+                        "get_ticker_value(%s, %s, %s): %s",
                         self.conf["domain"],
                         _name1,
                         _name2,
