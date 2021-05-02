@@ -24,7 +24,7 @@ import time
 
 from . import ctb_misc
 
-lg = logging.getLogger("cointipbot")
+logger = logging.getLogger("cointipbot")
 
 
 def update_stats(ctb=None):
@@ -38,14 +38,14 @@ def update_stats(ctb=None):
         return None
 
     for s in sorted(vars(ctb.conf.db.sql.globalstats)):
-        lg.debug("update_stats(): getting stats for '%s'" % s)
+        logger.debug("update_stats(): getting stats for '%s'" % s)
         sql = ctb.conf.db.sql.globalstats[s].query
         stats += "\n\n### %s\n\n" % ctb.conf.db.sql.globalstats[s].name
         stats += "%s\n\n" % ctb.conf.db.sql.globalstats[s].desc
 
         mysqlexec = ctb.db.execute(sql)
         if mysqlexec.rowcount <= 0:
-            lg.warning(
+            logger.warning(
                 "update_stats(): query <%s> returned nothing"
                 % ctb.conf.db.sql.globalstats[s].query
             )
@@ -67,7 +67,7 @@ def update_stats(ctb=None):
                 stats += ("|".join(values)) + "\n"
 
         else:
-            lg.error(
+            logger.error(
                 "update_stats(): don't know what to do with type '%s'"
                 % ctb.conf.db.sql.globalstats[s].type
             )
@@ -75,7 +75,7 @@ def update_stats(ctb=None):
 
         stats += "\n"
 
-    lg.debug(
+    logger.debug(
         "update_stats(): updating subreddit '%s', page '%s'"
         % (ctb.conf.reddit.stats.subreddit, ctb.conf.reddit.stats.page)
     )
@@ -111,7 +111,7 @@ def update_tips(ctb=None):
             values.append(format_value(t, k, "", ctb))
         tip_list += ("|".join(values)) + "\n"
 
-    lg.debug(
+    logger.debug(
         "update_tips(): updating subreddit '%s', page '%s'"
         % (ctb.conf.reddit.stats.subreddit, ctb.conf.reddit.stats.page_tips)
     )
@@ -132,7 +132,7 @@ def update_all_user_stats(ctb=None):
     """
 
     if not ctb.conf.reddit.stats.enabled:
-        lg.error("update_all_user_stats(): stats are not enabled in config.yml")
+        logger.error("update_all_user_stats(): stats are not enabled in config.yml")
         return None
 
     users = ctb.db.execute(ctb.conf.db.sql.userstats.users)
@@ -255,7 +255,7 @@ def update_user_stats(ctb=None, username=None):
         user_stats += ("|".join(values)) + "\n"
 
     # Submit changes
-    lg.debug(
+    logger.debug(
         "update_user_stats(): updating subreddit '%s', page '%s'"
         % (ctb.conf.reddit.stats.subreddit, page)
     )
@@ -280,12 +280,12 @@ def update_user_stats(ctb=None, username=None):
                 flair += " / "
             flair += "received[" + "|".join(total_received) + "]"
             flair += " (%d)" % num_received
-        lg.debug("update_user_stats(): updating flair for %s (%s)", username, flair)
+        logger.debug("update_user_stats(): updating flair for %s (%s)", username, flair)
         r = ctb_misc.praw_call(
             ctb.reddit.get_subreddit, ctb.conf.reddit.stats.subreddit
         )
         res = ctb_misc.praw_call(r.set_flair, username, flair, "")
-        lg.debug(res)
+        logger.debug(res)
 
     return True
 

@@ -22,7 +22,7 @@ from socket import timeout
 from praw.errors import RateLimitExceeded
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 
-lg = logging.getLogger("cointipbot")
+logger = logging.getLogger("cointipbot")
 
 
 def praw_call(prawFunc, *extraArgs, **extraKwArgs):
@@ -39,12 +39,12 @@ def praw_call(prawFunc, *extraArgs, **extraKwArgs):
 
         except (HTTPError, ConnectionError, Timeout, RateLimitExceeded, timeout) as e:
             if str(e) == "403 Client Error: Forbidden":
-                lg.warning("praw_call(): 403 forbidden")
+                logger.warning("praw_call(): 403 forbidden")
                 return False
             if str(e) == "404 Client Error: Not Found":
-                lg.warning("praw_call(): 404 not found")
+                logger.warning("praw_call(): 404 not found")
                 return False
-            lg.warning("praw_call(): Reddit is down (%s), sleeping...", e)
+            logger.warning("praw_call(): Reddit is down (%s), sleeping...", e)
             time.sleep(30)
 
     return True
@@ -61,41 +61,41 @@ def reddit_get_parent_author(comment, reddit, ctb):
     """
     Return author of comment's parent comment
     """
-    lg.debug("> reddit_get_parent_author()")
+    logger.debug("> reddit_get_parent_author()")
 
     while True:
 
         try:
             parentcomment = reddit.get_info(thing_id=comment.parent_id)
             if hasattr(parentcomment, "author") and parentcomment.author:
-                lg.debug(
+                logger.debug(
                     "< reddit_get_parent_author(%s) -> %s",
                     comment.id,
                     parentcomment.author.name,
                 )
                 return parentcomment.author.name
             else:
-                lg.warning(
+                logger.warning(
                     "reddit_get_parent_author(%s): parent comment was deleted",
                     comment.id,
                 )
                 return None
 
         except IndexError as e:
-            lg.warning("reddit_get_parent_author(): couldn't get author: %s", e)
+            logger.warning("reddit_get_parent_author(): couldn't get author: %s", e)
             return None
         except (RateLimitExceeded, timeout) as e:
-            lg.warning(
+            logger.warning(
                 "reddit_get_parent_author(): Reddit is down (%s), sleeping...", e
             )
             time.sleep(ctb.conf.misc.times.sleep_seconds)
         except HTTPError as e:
-            lg.warning(
+            logger.warning(
                 "reddit_get_parent_author(): thread or comment not found (%s)", e
             )
             return None
 
-    lg.error("reddit_get_parent_author(): returning None (should not get here)")
+    logger.error("reddit_get_parent_author(): returning None (should not get here)")
     return None
 
 
@@ -103,7 +103,7 @@ def get_value(conn, param0=None):
     """
     Fetch a value from t_values table
     """
-    lg.debug("> get_value()")
+    logger.debug("> get_value()")
 
     if param0 is None:
         raise Exception("get_value(): param0 is None")
@@ -115,15 +115,17 @@ def get_value(conn, param0=None):
 
         mysqlrow = conn.execute(sql, (param0)).fetchone()
         if mysqlrow is None:
-            lg.error("get_value(): query <%s> didn't return any rows", sql % (param0))
+            logger.error(
+                "get_value(): query <%s> didn't return any rows", sql % (param0)
+            )
             return None
         value = mysqlrow["value0"]
 
     except Exception as e:
-        lg.error("get_value(): error executing query <%s>: %s", sql % (param0), e)
+        logger.error("get_value(): error executing query <%s>: %s", sql % (param0), e)
         raise
 
-    lg.debug("< get_value() DONE (%s)", value)
+    logger.debug("< get_value() DONE (%s)", value)
     return value
 
 
@@ -131,7 +133,7 @@ def set_value(conn, param0=None, value0=None):
     """
     Set a value in t_values table
     """
-    lg.debug("> set_value(%s, %s)", param0, value0)
+    logger.debug("> set_value(%s, %s)", param0, value0)
 
     if param0 is None or value0 is None:
         raise Exception("set_value(): param0 is None or value0 is None")
@@ -141,14 +143,16 @@ def set_value(conn, param0=None, value0=None):
 
         mysqlexec = conn.execute(sql, (param0, value0))
         if mysqlexec.rowcount <= 0:
-            lg.error(
+            logger.error(
                 "set_value(): query <%s> didn't affect any rows", sql % (param0, value0)
             )
             return False
 
     except Exception as e:
-        lg.error("set_value: error executing query <%s>: %s", sql % (param0, value0), e)
+        logger.error(
+            "set_value: error executing query <%s>: %s", sql % (param0, value0), e
+        )
         raise
 
-    lg.debug("< set_value() DONE")
+    logger.debug("< set_value() DONE")
     return True

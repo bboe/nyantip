@@ -22,7 +22,7 @@ from http.client import CannotSendRequest
 
 from pifkoin.bitcoind import Bitcoind, BitcoindException
 
-lg = logging.getLogger("cointipbot")
+logger = logging.getLogger("cointipbot")
 
 
 class CtbCoin(object):
@@ -51,10 +51,10 @@ class CtbCoin(object):
 
         # connect to coin daemon
         try:
-            lg.debug("CtbCoin::__init__(): connecting to %s...", self.conf["name"])
+            logger.debug("CtbCoin::__init__(): connecting to %s...", self.conf["name"])
             self.conn = Bitcoind(self.conf["config_file"])
         except BitcoindException as e:
-            lg.error(
+            logger.error(
                 "CtbCoin::__init__(): error connecting to %s using %s: %s",
                 self.conf["name"],
                 self.conf["config_file"],
@@ -62,11 +62,11 @@ class CtbCoin(object):
             )
             raise
 
-        lg.info("CtbCoin::__init__():: connected to %s", self.conf["name"])
+        logger.info("CtbCoin::__init__():: connected to %s", self.conf["name"])
         time.sleep(0.5)
 
         # set transaction fee
-        # lg.info("Setting tx fee of %f", self.conf['txfee'])
+        # logger.info("Setting tx fee of %f", self.conf['txfee'])
         # self.conn.settxfee(self.conf['txfee'])
 
     def getbalance(self, _user=None, _minconf=None):
@@ -74,7 +74,7 @@ class CtbCoin(object):
         Get user's tip or withdraw balance. _minconf is number of confirmations to use.
         Returns (float) balance
         """
-        lg.debug("CtbCoin::getbalance(%s, %s)", _user, _minconf)
+        logger.debug("CtbCoin::getbalance(%s, %s)", _user, _minconf)
 
         user = self.verify_user(_user=_user)
         minconf = self.verify_minconf(_minconf=_minconf)
@@ -83,7 +83,7 @@ class CtbCoin(object):
         try:
             balance = self.conn.getbalance(user, minconf)
         except BitcoindException as e:
-            lg.error(
+            logger.error(
                 "CtbCoin.getbalance(): error getting %s (minconf=%s) balance for %s: %s",
                 self.conf["name"],
                 minconf,
@@ -100,7 +100,7 @@ class CtbCoin(object):
         Transfer (move) coins to user
         Returns (bool)
         """
-        lg.debug("CtbCoin::sendtouser(%s, %s, %s)", _userfrom, _userto, _amount)
+        logger.debug("CtbCoin::sendtouser(%s, %s, %s)", _userfrom, _userto, _amount)
 
         userfrom = self.verify_user(_user=_userfrom)
         userto = self.verify_user(_user=_userto)
@@ -108,7 +108,7 @@ class CtbCoin(object):
 
         # send request to coin daemon
         try:
-            lg.info(
+            logger.info(
                 "CtbCoin::sendtouser(): moving %s %s from %s to %s",
                 amount,
                 self.conf["name"],
@@ -118,7 +118,7 @@ class CtbCoin(object):
             self.conn.move(userfrom, userto, amount)
             time.sleep(0.5)
         except Exception as e:
-            lg.error(
+            logger.error(
                 "CtbCoin::sendtouser(): error sending %s %s from %s to %s: %s",
                 amount,
                 self.conf["name"],
@@ -136,7 +136,7 @@ class CtbCoin(object):
         Send coins to address
         Returns (string) txid
         """
-        lg.debug("CtbCoin::sendtoaddr(%s, %s, %s)", _userfrom, _addrto, _amount)
+        logger.debug("CtbCoin::sendtoaddr(%s, %s, %s)", _userfrom, _addrto, _amount)
 
         userfrom = self.verify_user(_user=_userfrom)
         addrto = self.verify_addr(_addr=_addrto)
@@ -146,7 +146,7 @@ class CtbCoin(object):
 
         # send request to coin daemon
         try:
-            lg.info(
+            logger.info(
                 "CtbCoin::sendtoaddr(): sending %s %s from %s to %s",
                 amount,
                 self.conf["name"],
@@ -156,20 +156,20 @@ class CtbCoin(object):
 
             # Unlock wallet, if applicable
             if hasattr(self.conf, "walletpassphrase"):
-                lg.debug("CtbCoin::sendtoaddr(): unlocking wallet...")
+                logger.debug("CtbCoin::sendtoaddr(): unlocking wallet...")
                 self.conn.walletpassphrase(self.conf["walletpassphrase"], 1)
 
             # Perform transaction
-            lg.debug("CtbCoin::sendtoaddr(): calling sendfrom()...")
+            logger.debug("CtbCoin::sendtoaddr(): calling sendfrom()...")
             txid = self.conn.sendfrom(userfrom, addrto, amount, minconf)
 
             # Lock wallet, if applicable
             if hasattr(self.conf, "walletpassphrase"):
-                lg.debug("CtbCoin::sendtoaddr(): locking wallet...")
+                logger.debug("CtbCoin::sendtoaddr(): locking wallet...")
                 self.conn.walletlock()
 
         except Exception as e:
-            lg.error(
+            logger.error(
                 "CtbCoin::sendtoaddr(): error sending %s %s from %s to %s: %s",
                 amount,
                 self.conf["name"],
@@ -187,17 +187,17 @@ class CtbCoin(object):
         Verify that _addr is a valid coin address
         Returns (bool)
         """
-        lg.debug("CtbCoin::validateaddr(%s)", _addr)
+        logger.debug("CtbCoin::validateaddr(%s)", _addr)
 
         addr = self.verify_addr(_addr=_addr)
         addr_valid = self.conn.validateaddress(addr)
         time.sleep(0.5)
 
         if "isvalid" not in addr_valid or not addr_valid["isvalid"]:
-            lg.debug("CtbCoin::validateaddr(%s): not valid", addr)
+            logger.debug("CtbCoin::validateaddr(%s): not valid", addr)
             return False
         else:
-            lg.debug("CtbCoin::validateaddr(%s): valid", addr)
+            logger.debug("CtbCoin::validateaddr(%s): valid", addr)
             return True
 
     def getnewaddr(self, _user=None):
@@ -230,11 +230,13 @@ class CtbCoin(object):
                 return str(addr)
 
             except BitcoindException as e:
-                lg.error("CtbCoin::getnewaddr(%s): BitcoindException: %s", user, e)
+                logger.error("CtbCoin::getnewaddr(%s): BitcoindException: %s", user, e)
                 raise
             except CannotSendRequest:
                 if counter < 3:
-                    lg.warning("CtbCoin::getnewaddr(%s): CannotSendRequest, retrying")
+                    logger.warning(
+                        "CtbCoin::getnewaddr(%s): CannotSendRequest, retrying"
+                    )
                     counter += 1
                     time.sleep(10)
                     continue
@@ -242,12 +244,12 @@ class CtbCoin(object):
                     raise
             except Exception as e:
                 if str(e) == "timed out" and counter < 3:
-                    lg.warning("CtbCoin::getnewaddr(%s): timed out, retrying")
+                    logger.warning("CtbCoin::getnewaddr(%s): timed out, retrying")
                     counter += 1
                     time.sleep(10)
                     continue
                 else:
-                    lg.error("CtbCoin::getnewaddr(%s): Exception: %s", user, e)
+                    logger.error("CtbCoin::getnewaddr(%s): Exception: %s", user, e)
                     raise
 
     def verify_user(self, _user=None):

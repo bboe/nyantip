@@ -19,7 +19,7 @@ import http.client
 import json
 import logging
 
-lg = logging.getLogger("cointipbot")
+logger = logging.getLogger("cointipbot")
 
 
 class CtbExchange(object):
@@ -50,7 +50,7 @@ class CtbExchange(object):
         self.conf["coinlist"] = map(lambda x: x.lower(), self.conf["coinlist"])
         self.conf["fiatlist"] = map(lambda x: x.lower(), self.conf["fiatlist"])
 
-        lg.debug(
+        logger.debug(
             "CtbExchange::__init__(): initialized exchange %s" % self.conf["domain"]
         )
 
@@ -65,10 +65,10 @@ class CtbExchange(object):
         name = str(_name).lower()
 
         if name in self.conf["coinlist"] or name in self.conf["fiatlist"]:
-            # lg.debug("CtbExchange::supports(%s): YES" % name)
+            # logger.debug("CtbExchange::supports(%s): YES" % name)
             return True
         else:
-            # lg.debug("CtbExchange::supports(%s): NO" % name)
+            # logger.debug("CtbExchange::supports(%s): NO" % name)
             return False
 
     def supports_pair(self, _name1=None, _name2=None):
@@ -109,7 +109,7 @@ class CtbExchange(object):
                     myjsonpath = myjsonpath.replace(t, toreplace[t])
 
                 try:
-                    lg.debug(
+                    logger.debug(
                         "CtbExchange::get_ticker_value(%s, %s, %s): calling %s to get %s...",
                         self.conf["domain"],
                         _name1,
@@ -125,7 +125,7 @@ class CtbExchange(object):
                         connection.request("GET", myurlpath)
                     response = json.loads(connection.getresponse().read())
                     result = xpath_get(response, myjsonpath)
-                    lg.debug(
+                    logger.debug(
                         "CtbExchange::get_ticker_value(%s, %s, %s): result: %.6f",
                         self.conf["domain"],
                         _name1,
@@ -134,7 +134,7 @@ class CtbExchange(object):
                     )
                     results.append(float(result))
                 except (http.client.HTTPException, Exception) as e:
-                    lg.error(
+                    logger.error(
                         "CtbExchange::get_ticker_value(%s, %s, %s): %s",
                         self.conf["domain"],
                         _name1,

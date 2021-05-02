@@ -21,8 +21,8 @@ import cointipbot
 from ctb import ctb_stats
 
 logging.basicConfig()
-lg = logging.getLogger("cointipbot")
-lg.setLevel(logging.DEBUG)
+logger = logging.getLogger("cointipbot")
+logger.setLevel(logging.DEBUG)
 
 ctb = cointipbot.CointipBot(
     self_checks=False,
@@ -35,12 +35,12 @@ ctb = cointipbot.CointipBot(
 
 # Update stats page
 result = ctb_stats.update_stats(ctb=ctb)
-lg.debug(result)
+logger.debug(result)
 
 # Update tips page
 result = ctb_stats.update_tips(ctb=ctb)
-lg.debug(result)
+logger.debug(result)
 
 # This isn't needed because it happens during the tip processing
 # result = ctb_stats.update_all_user_stats(ctb=ctb)
-# lg.debug(result)
+# logger.debug(result)
