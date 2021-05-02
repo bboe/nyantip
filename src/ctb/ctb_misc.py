@@ -152,37 +152,3 @@ def set_value(conn, param0=None, value0=None):
 
     lg.debug("< set_value() DONE")
     return True
-
-
-def add_coin(coin, db, coins):
-    """
-    Add new coin address to each user
-    """
-    lg.debug("> add_coin(%s)", coin)
-
-    sql_select = "SELECT username FROM t_users WHERE username NOT IN (SELECT username FROM t_addrs WHERE coin = %s) ORDER BY username"
-    sql_insert = "REPLACE INTO t_addrs (username, coin, address) VALUES (%s, %s, %s)"
-
-    try:
-
-        mysqlsel = db.execute(sql_select, (coin))
-        for m in mysqlsel:
-            # Generate new coin address for user
-            new_addr = coins[coin].getnewaddr(_user=m["username"])
-            lg.info("add_coin(): got new address %s for %s", new_addr, m["username"])
-            # Add new coin address to MySQL
-            mysqlins = db.execute(sql_insert, (m["username"].lower(), coin, new_addr))
-            if mysqlins.rowcount <= 0:
-                raise Exception(
-                    "add_coin(%s): rowcount <= 0 when executing <%s>",
-                    coin,
-                    sql_insert % (m["username"].lower(), coin, new_addr),
-                )
-            time.sleep(1)
-
-    except Exception as e:
-        lg.error("add_coin(%s): error: %s", coin, e)
-        raise
-
-    lg.debug("< add_coin(%s) DONE", coin)
-    return True
