@@ -391,176 +391,6 @@ class CointipBot(object):
         logger.debug("< CointipBot::check_inbox() DONE")
         return True
 
-    def init_subreddits(self):
-        """
-        Determine a list of subreddits and create a PRAW object
-        """
-        logger.debug("> CointipBot::init_subreddits()")
-
-        try:
-
-            if "subreddits" not in self.conf["reddit"]:
-                my_reddits_list = None
-                my_reddits_string = None
-
-                if "these_subreddits" in self.conf["reddit"]["scan"]:
-                    # Subreddits are specified in conf.yml
-                    my_reddits_list = list(
-                        self.conf["reddit"]["scan"]["these_subreddits"]
-                    )
-
-                elif self.conf["reddit"]["scan"]["my_subreddits"]:
-                    # Subreddits are subscribed to by bot user
-                    my_reddits = ctb_misc.praw_call(
-                        self.reddit.get_my_subreddits, limit=None
-                    )
-                    my_reddits_list = []
-                    for my_reddit in my_reddits:
-                        my_reddits_list.append(my_reddit.display_name.lower())
-                    my_reddits_list.sort()
-
-                else:
-                    # No subreddits configured
-                    logger.debug(
-                        "< CointipBot::check_subreddits() DONE (no subreddits configured to scan)"
-                    )
-                    return False
-
-                # Build subreddits string
-                my_reddits_string = "+".join(my_reddits_list)
-
-                # Get multi-reddit PRAW object
-                logger.debug(
-                    "CointipBot::check_subreddits(): multi-reddit string: %s",
-                    my_reddits_string,
-                )
-                self.conf["reddit"]["subreddits"] = ctb_misc.praw_call(
-                    self.reddit.get_subreddit, my_reddits_string
-                )
-
-        except Exception as e:
-            logger.error(
-                "CointipBot::check_subreddits(): coudln't get subreddits: %s", e
-            )
-            raise
-
-        logger.debug("< CointipBot::init_subreddits() DONE")
-        return True
-
-    def check_subreddits(self):
-        """
-        Evaluate new comments from configured subreddits
-        """
-        logger.debug("> CointipBot::check_subreddits()")
-
-        try:
-            # Process comments until old comment reached
-
-            # Get last_processed_comment_time if necessary
-            if (
-                not hasattr(self.conf["reddit"], "last_processed_comment_time")
-                or self.conf["reddit"]["last_processed_comment_time"] <= 0
-            ):
-                self.conf["reddit"]["last_processed_comment_time"] = ctb_misc.get_value(
-                    conn=self.db, param0="last_processed_comment_time"
-                )
-            updated_last_processed_time = 0
-
-            # Fetch comments from subreddits
-            my_comments = ctb_misc.praw_call(
-                self.conf["reddit"].subreddits.get_comments,
-                limit=self.conf["reddit"]["scan"]["batch_limit"],
-            )
-
-            # Match each comment against regex
-            counter = 0
-            for c in my_comments:
-                # Stop processing if old comment reached
-                # logger.debug("check_subreddits(): c.id %s from %s, %s <= %s", c.id, c.subreddit.display_name, c.created_utc, self.conf['reddit'].last_processed_comment_time)
-                if c.created_utc <= self.conf["reddit"].last_processed_comment_time:
-                    logger.debug("CointipBot::check_subreddits(): old comment reached")
-                    break
-                counter += 1
-                if c.created_utc > updated_last_processed_time:
-                    updated_last_processed_time = c.created_utc
-
-                # Ignore duplicate comments (may happen when bot is restarted)
-                if ctb_action.check_action(msg_id=c.id, ctb=self):
-                    logger.warning(
-                        "CointipBot::check_inbox(): duplicate action detected (comment.id %s), ignoring",
-                        c.id,
-                    )
-                    continue
-
-                # Ignore comments from banned users
-                if c.author and self.conf["reddit"]["banned_users"]:
-                    logger.debug(
-                        "CointipBot::check_subreddits(): checking whether user '%s' is banned..."
-                        % c.author
-                    )
-                    u = ctb_user.CtbUser(
-                        name=c.author.name, redditobj=c.author, ctb=self
-                    )
-                    if u.banned:
-                        logger.info(
-                            "CointipBot::check_subreddits(): ignoring banned user '%s'"
-                            % c.author
-                        )
-                        continue
-
-                # Attempt to evaluate comment
-                action = ctb_action.eval_comment(c, self)
-
-                # Perform action, if found
-                if action:
-                    logger.info(
-                        "CointipBot::check_subreddits(): %s from %s (%s)",
-                        action.type,
-                        action.u_from.name,
-                        c.id,
-                    )
-                    logger.debug(
-                        "CointipBot::check_subreddits(): comment body: <%s>", c.body
-                    )
-                    action.do()
-                else:
-                    logger.info("CointipBot::check_subreddits(): no match")
-
-            logger.debug(
-                "CointipBot::check_subreddits(): %s comments processed", counter
-            )
-            if counter >= self.conf["reddit"]["scan"]["batch_limit"] - 1:
-                logger.warning(
-                    "CointipBot::check_subreddits(): conf.reddit.scan.batch_limit (%s) was not large enough to process all comments",
-                    self.conf["reddit"]["scan"]["batch_limit"],
-                )
-
-        except (HTTPError, RateLimitExceeded, timeout) as e:
-            logger.warning(
-                "CointipBot::check_subreddits(): Reddit is down (%s), sleeping", e
-            )
-            time.sleep(self.conf["misc"]["times"]["sleep_seconds"])
-            pass
-        except Exception as e:
-            logger.error(
-                "CointipBot::check_subreddits(): coudln't fetch comments: %s", e
-            )
-            raise
-
-        # Save updated last_processed_time value
-        if updated_last_processed_time > 0:
-            self.conf[
-                "reddit"
-            ].last_processed_comment_time = updated_last_processed_time
-        ctb_misc.set_value(
-            conn=self.db,
-            param0="last_processed_comment_time",
-            value0=self.conf["reddit"].last_processed_comment_time,
-        )
-
-        logger.debug("< CointipBot::check_subreddits() DONE")
-        return True
-
     def refresh_ev(self):
         """
         Refresh coin/fiat exchange values using self.exchanges
@@ -735,7 +565,6 @@ class CointipBot(object):
         # Reddit
         if init_reddit:
             self.reddit = self.connect_reddit()
-            self.init_subreddits()
             # Regex for Reddit messages
             ctb_action.init_regex(self)
 
@@ -778,11 +607,6 @@ class CointipBot(object):
 
                 # Check personal messages
                 self.check_inbox()
-
-                # Check subreddit comments for tips
-                # or not. fuck that. u mentions only
-                #                if self.conf['reddit'].scan.my_subreddits or hasattr(self.conf['reddit'].scan, 'these_subreddits'):
-                #                    self.check_subreddits()
 
                 # Sleep
                 logger.debug(
