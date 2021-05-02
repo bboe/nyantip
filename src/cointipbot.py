@@ -31,61 +31,22 @@ from jinja2 import Environment, PackageLoader
 from praw.errors import RateLimitExceeded
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 
-from ctb import ctb_action, ctb_coin, ctb_db, ctb_exchange, ctb_log, ctb_misc, ctb_user
+from ctb import ctb_action, ctb_coin, ctb_db, ctb_exchange, ctb_misc, ctb_user
 
 # Configure CointipBot logger
 logging.basicConfig(
-    datefmt="%H:%M:%S", format="%(asctime)s %(levelname)-8s %(name)-12s %(message)s"
+    datefmt="%H:%M:%S",
+    format="%(asctime)s %(levelname)-8s %(name)-12s %(message)s",
 )
+logging.getLogger("bitcoin").setLevel(logging.DEBUG)
 logger = logging.getLogger("ctb")
+logger.setLevel(logging.DEBUG)
 
 
 class CointipBot(object):
     """
     Main class for cointip bot
     """
-
-    def init_logging(self):
-        """
-        Initialize logging handlers
-        """
-
-        handlers = {}
-        levels = ["warning", "info", "debug"]
-        bt = logging.getLogger("bitcoin")
-
-        # Get handlers
-        handlers = {}
-        for level in levels:
-            if self.conf["logs"]["levels"][level]["enabled"]:
-                handlers[level] = logging.FileHandler(
-                    self.conf["logs"]["levels"][level]["filename"],
-                    mode="a" if self.conf["logs"]["levels"][level]["append"] else "w",
-                )
-                handlers[level].setFormatter(
-                    logging.Formatter(self.conf["logs"]["levels"][level]["format"])
-                )
-
-        # Set handlers
-        for level in levels:
-            if level in handlers:
-                level_to_set = (
-                    logging.WARNING
-                    if level == "warning"
-                    else (logging.INFO if level == "info" else logging.DEBUG)
-                )
-                handlers[level].addFilter(ctb_log.LevelFilter(level_to_set))
-                logger.addHandler(handlers[level])
-                bt.addHandler(handlers[level])
-
-        # Set default levels
-        logger.setLevel(logging.DEBUG)
-        bt.setLevel(logging.DEBUG)
-
-        logger.info(
-            "init_logging(): -------------------- logging initialized --------------------"
-        )
-        return True
 
     def parse_config(self):
         """
@@ -101,7 +62,6 @@ class CointipBot(object):
                 "exchanges",
                 "fiat",
                 "keywords",
-                "logs",
                 "misc",
                 "reddit",
                 "regex",
@@ -496,7 +456,6 @@ class CointipBot(object):
         init_coins=True,
         init_exchanges=True,
         init_db=True,
-        init_logging=True,
     ):
         """
         Constructor. Parses configuration file and initializes bot.
@@ -509,10 +468,6 @@ class CointipBot(object):
 
         # Configuration
         self.conf = self.parse_config()
-
-        # Logging
-        if init_logging:
-            self.init_logging()
 
         # Templating with jinja2
         self.jenv = Environment(
