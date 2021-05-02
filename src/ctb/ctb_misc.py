@@ -186,18 +186,3 @@ def add_coin(coin, db, coins):
 
     lg.debug("< add_coin(%s) DONE", coin)
     return True
-
-
-class DotDict(object):
-    def __init__(self, d):
-        for a, b in d.items():
-            if isinstance(b, (list, tuple)):
-                setattr(self, a, [DotDict(x) if isinstance(x, dict) else x for x in b])
-            else:
-                setattr(self, a, DotDict(b) if isinstance(b, dict) else b)
-
-    def __getitem__(self, val):
-        return getattr(self, val)
-
-    def has_key(self, key):
-        return hasattr(self, key)

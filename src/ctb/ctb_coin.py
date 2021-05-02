@@ -41,9 +41,9 @@ class CtbCoin(object):
         # verify _conf is a config dictionary
         if (
             not _conf
-            or not hasattr(_conf, "name")
-            or not hasattr(_conf, "config_file")
-            or not hasattr(_conf, "txfee")
+            or "name" not in _conf
+            or "config_file" not in _conf
+            or "txfee" not in _conf
         ):
             raise Exception("CtbCoin::__init__(): _conf is empty or invalid")
 
@@ -51,25 +51,23 @@ class CtbCoin(object):
 
         # connect to coin daemon
         try:
-            lg.debug("CtbCoin::__init__(): connecting to %s...", self.conf.name)
-            self.conn = Bitcoind(
-                self.conf.config_file, rpcserver=self.conf.config_rpcserver
-            )
+            lg.debug("CtbCoin::__init__(): connecting to %s...", self.conf["name"])
+            self.conn = Bitcoind(self.conf["config_file"])
         except BitcoindException as e:
             lg.error(
                 "CtbCoin::__init__(): error connecting to %s using %s: %s",
-                self.conf.name,
-                self.conf.config_file,
+                self.conf["name"],
+                self.conf["config_file"],
                 e,
             )
             raise
 
-        lg.info("CtbCoin::__init__():: connected to %s", self.conf.name)
+        lg.info("CtbCoin::__init__():: connected to %s", self.conf["name"])
         time.sleep(0.5)
 
         # set transaction fee
-        lg.info("Setting tx fee of %f", self.conf.txfee)
-        self.conn.settxfee(self.conf.txfee)
+        # lg.info("Setting tx fee of %f", self.conf['txfee'])
+        # self.conn.settxfee(self.conf['txfee'])
 
     def getbalance(self, _user=None, _minconf=None):
         """
@@ -87,7 +85,7 @@ class CtbCoin(object):
         except BitcoindException as e:
             lg.error(
                 "CtbCoin.getbalance(): error getting %s (minconf=%s) balance for %s: %s",
-                self.conf.name,
+                self.conf["name"],
                 minconf,
                 user,
                 e,
@@ -113,7 +111,7 @@ class CtbCoin(object):
             lg.info(
                 "CtbCoin::sendtouser(): moving %s %s from %s to %s",
                 amount,
-                self.conf.name,
+                self.conf["name"],
                 userfrom,
                 userto,
             )
@@ -123,7 +121,7 @@ class CtbCoin(object):
             lg.error(
                 "CtbCoin::sendtouser(): error sending %s %s from %s to %s: %s",
                 amount,
-                self.conf.name,
+                self.conf["name"],
                 userfrom,
                 userto,
                 e,
@@ -143,7 +141,7 @@ class CtbCoin(object):
         userfrom = self.verify_user(_user=_userfrom)
         addrto = self.verify_addr(_addr=_addrto)
         amount = self.verify_amount(_amount=_amount)
-        minconf = self.verify_minconf(_minconf=self.conf.minconf.withdraw)
+        minconf = self.verify_minconf(_minconf=self.conf["minconf"]["withdraw"])
         txid = ""
 
         # send request to coin daemon
@@ -151,7 +149,7 @@ class CtbCoin(object):
             lg.info(
                 "CtbCoin::sendtoaddr(): sending %s %s from %s to %s",
                 amount,
-                self.conf.name,
+                self.conf["name"],
                 userfrom,
                 addrto,
             )
@@ -159,7 +157,7 @@ class CtbCoin(object):
             # Unlock wallet, if applicable
             if hasattr(self.conf, "walletpassphrase"):
                 lg.debug("CtbCoin::sendtoaddr(): unlocking wallet...")
-                self.conn.walletpassphrase(self.conf.walletpassphrase, 1)
+                self.conn.walletpassphrase(self.conf["walletpassphrase"], 1)
 
             # Perform transaction
             lg.debug("CtbCoin::sendtoaddr(): calling sendfrom()...")
@@ -174,7 +172,7 @@ class CtbCoin(object):
             lg.error(
                 "CtbCoin::sendtoaddr(): error sending %s %s from %s to %s: %s",
                 amount,
-                self.conf.name,
+                self.conf["name"],
                 userfrom,
                 addrto,
                 e,
@@ -216,10 +214,10 @@ class CtbCoin(object):
             try:
                 # Unlock wallet for keypoolrefill
                 if hasattr(self.conf, "walletpassphrase"):
-                    self.conn.walletpassphrase(self.conf.walletpassphrase, 1)
+                    self.conn.walletpassphrase(self.conf["walletpassphrase"], 1)
 
                 # Generate new address
-                addr = self.conn.getnewaddress(user)
+                addr = self.conn.listaccounts()
 
                 # Lock wallet
                 if hasattr(self.conf, "walletpassphrase"):
@@ -257,7 +255,7 @@ class CtbCoin(object):
         Verify and return a username
         """
 
-        if not _user or not type(_user) in [str, unicode]:
+        if not isinstance(_user, str):
             raise Exception(
                 "CtbCoin::verify_user(): _user wrong type (%s) or empty (%s)",
                 type(_user),
@@ -271,7 +269,7 @@ class CtbCoin(object):
         Verify and return coin address
         """
 
-        if not _addr or not type(_addr) in [str, unicode]:
+        if not isinstance(_addr, str):
             raise Exception(
                 "CtbCoin::verify_addr(): _addr wrong type (%s) or empty (%s)",
                 type(_addr),

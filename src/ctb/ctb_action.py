@@ -240,28 +240,28 @@ class CtbAction(object):
                     )
                     return None
                 # Choose a coin based on from_user's available balance (pick first one that can satisfy the amount)
-                cc = self.ctb.conf.coins
+                cc = self.ctb.conf["coins"]
                 for c in sorted(self.ctb.coins):
                     lg.debug(
                         "CtbAction::__init__(atype=%s, from_user=%s): considering %s"
                         % (self.type, self.u_from.name, c)
                     )
                     # First, check if we have a ticker value for this coin and fiat
-                    if not self.ctb.coin_value(cc[c].unit, self.fiat) > 0.0:
+                    if not self.ctb.coin_value(coin_conf["unit"], self.fiat) > 0.0:
                         continue
                     # Compare available and needed coin balances
                     coin_balance_avail = self.u_from.get_balance(
-                        coin=cc[c].unit, kind="givetip"
+                        coin=coin_conf["unit"], kind="givetip"
                     )
                     coin_balance_need = self.fiatval / self.ctb.coin_value(
-                        cc[c].unit, self.fiat
+                        coin_conf["unit"], self.fiat
                     )
                     if (
                         coin_balance_avail > coin_balance_need
                         or abs(coin_balance_avail - coin_balance_need) < 0.000001
                     ):
                         # Found coin with enough balance
-                        self.coin = cc[c].unit
+                        self.coin = coin_conf["unit"]
                         break
             if not self.coin:
                 # Couldn't deteremine coin, abort
@@ -279,12 +279,12 @@ class CtbAction(object):
             if not self.fiatval:
                 # Determine fiat value
                 self.fiatval = self.coinval * self.ctb.coin_value(
-                    self.ctb.conf.coins[self.coin].unit, self.fiat
+                    self.ctb.conf["coins"][self.coin].unit, self.fiat
                 )
             elif not self.coinval:
                 # Determine coin value
                 self.coinval = self.fiatval / self.ctb.coin_value(
-                    self.ctb.conf.coins[self.coin].unit, self.fiat
+                    self.ctb.conf["coins"][self.coin].unit, self.fiat
                 )
 
         lg.debug(
@@ -395,7 +395,7 @@ class CtbAction(object):
         """
         lg.debug("> CtbAction::do()")
 
-        if not self.ctb.conf.regex.actions[self.type].enabled:
+        if not self.ctb.conf["regex"]["actions"][self.type].enabled:
             msg = self.ctb.jenv.get_template("command-disabled.tpl").render(
                 a=self, ctb=self.ctb
             )
@@ -674,9 +674,9 @@ class CtbAction(object):
 
             # Verify minimum transaction size
             txkind = "givetip" if self.u_to else "withdraw"
-            if self.coinval < self.ctb.conf.coins[self.coin].txmin[txkind]:
+            if self.coinval < self.ctb.conf["coins"][self.coin].txmin[txkind]:
                 msg = self.ctb.jenv.get_template("tip-below-minimum.tpl").render(
-                    min_value=self.ctb.conf.coins[self.coin].txmin[txkind],
+                    min_value=self.ctb.conf["coins"][self.coin].txmin[txkind],
                     a=self,
                     ctb=self.ctb,
                 )
@@ -705,7 +705,7 @@ class CtbAction(object):
                 balance_avail = self.u_from.get_balance(coin=self.coin, kind="withdraw")
                 balance_need = self.coinval
                 # Add mandatory network transaction fee
-                balance_need += self.ctb.conf.coins[self.coin].txfee
+                balance_need += self.ctb.conf["coins"][self.coin].txfee
                 if not (
                     balance_avail > balance_need
                     or abs(balance_avail - balance_need) < 0.000001
@@ -773,7 +773,7 @@ class CtbAction(object):
                     title="verified^nyan", a=self, ctb=self.ctb
                 )
                 lg.debug("CtbAction::validate(): " + msg)
-                if self.ctb.conf.reddit.messages.verified:
+                if self.ctb.conf["reddit"]["messages"]["verified"]:
                     if not ctb_misc.praw_call(self.msg.reply, msg):
                         self.u_from.tell(subj="+tip pending +accept", msg=msg)
                 else:
@@ -900,7 +900,7 @@ class CtbAction(object):
                     title="verified^nyan", a=self, ctb=self.ctb
                 )
                 lg.debug("CtbAction::givetip(): " + msg)
-                if self.ctb.conf.reddit.messages.verified:
+                if self.ctb.conf["reddit"]["messages"]["verified"]:
                     if not ctb_misc.praw_call(self.msg.reply, msg):
                         self.u_from.tell(subj="+tip succeeded", msg=msg)
                 else:
@@ -946,7 +946,7 @@ class CtbAction(object):
                 title="verified^nyan", a=self, ctb=self.ctb
             )
             lg.debug("CtbAction::givetip(): " + msg)
-            if self.ctb.conf.reddit.messages.verified:
+            if self.ctb.conf["reddit"]["messages"]["verified"]:
                 if not ctb_misc.praw_call(self.msg.reply, msg):
                     self.u_from.tell(subj="+tip succeeded", msg=msg)
             else:
@@ -983,7 +983,7 @@ class CtbAction(object):
                 # Get tip balance
                 coininfo.balance = self.ctb.coins[c].getbalance(
                     _user=self.u_from.name,
-                    _minconf=self.ctb.conf.coins[c].minconf.givetip,
+                    _minconf=self.ctb.conf["coins"][c].minconf.givetip,
                 )
                 info.append(coininfo)
             except Exception as e:
@@ -999,9 +999,9 @@ class CtbAction(object):
         fiat_total = 0.0
         for i in info:
             i.fiat_symbol = self.ctb.conf.fiat.usd.symbol
-            if self.ctb.coin_value(self.ctb.conf.coins[i.coin].unit, "usd") > 0.0:
+            if self.ctb.coin_value(self.ctb.conf["coins"][i.coin].unit, "usd") > 0.0:
                 i.fiat_balance = i.balance * self.ctb.coin_value(
-                    self.ctb.conf.coins[i.coin].unit, "usd"
+                    self.ctb.conf["coins"][i.coin].unit, "usd"
                 )
                 fiat_total += i.fiat_balance
 
@@ -1094,7 +1094,7 @@ class CtbAction(object):
             )
         if has_redeemed:
             msg = self.ctb.jenv.get_template("redeem-already-done.tpl").render(
-                coin=self.ctb.conf.coins[self.coin].name
+                coin=self.ctb.conf["coins"][self.coin].name
                 if self.ctb.conf.reddit.redeem.multicoin
                 else None,
                 a=self,
@@ -1252,153 +1252,154 @@ def init_regex(ctb):
     """
     lg.debug("> init_regex()")
 
-    cc = ctb.conf.coins
-    fiat = ctb.conf.fiat
-    actions = ctb.conf.regex.actions
+    cc = ctb.conf["coins"]
+    fiats = ctb.conf["fiat"]
+    actions = ctb.conf["regex"]["actions"]
     ctb.runtime["regex"] = []
 
-    for a in vars(actions):
-        if actions[a].simple:
+    for action, action_conf in actions.items():
+        if action_conf["simple"]:
 
             # Add simple message actions (info, register, accept, decline, history, rates)
 
-            entry = ctb_misc.DotDict(
-                {
-                    "regex": actions[a].regex,
-                    "action": a,
-                    "rg_amount": 0,
-                    "rg_keyword": 0,
-                    "rg_address": 0,
-                    "rg_to_user": 0,
-                    "coin": None,
-                    "fiat": None,
-                    "keyword": None,
-                }
-            )
-            lg.debug("init_regex(): ADDED %s: %s", entry.action, entry.regex)
+            entry = {
+                "regex": action_conf["regex"],
+                "action": action,
+                "rg_amount": 0,
+                "rg_keyword": 0,
+                "rg_address": 0,
+                "rg_to_user": 0,
+                "coin": None,
+                "fiat": None,
+                "keyword": None,
+            }
+            lg.debug("init_regex(): ADDED %s: %s", entry["action"], entry["regex"])
             ctb.runtime["regex"].append(entry)
 
         else:
 
             # Add non-simple actions (givetip, redeem, withdraw)
 
-            for r in sorted(vars(actions[a].regex)):
-                lg.debug("init_regex(): processing regex %s", actions[a].regex[r].value)
-                rval1 = actions[a].regex[r].value
+            for _, regex in sorted(action_conf["regex"].items()):
+                lg.debug("init_regex(): processing regex %s", regex["value"])
+                rval1 = regex["value"]
                 rval1 = rval1.replace(
-                    "{REGEX_TIP_INIT}", ctb.conf.regex.values.tip_init.regex
+                    "{REGEX_TIP_INIT}", ctb.conf["regex"]["values"]["tip_init"]["regex"]
                 )
                 rval1 = rval1.replace(
-                    "{REGEX_USER}", ctb.conf.regex.values.username.regex
+                    "{REGEX_USER}", ctb.conf["regex"]["values"]["username"]["regex"]
                 )
                 rval1 = rval1.replace(
-                    "{REGEX_AMOUNT}", ctb.conf.regex.values.amount.regex
+                    "{REGEX_AMOUNT}", ctb.conf["regex"]["values"]["amount"]["regex"]
                 )
                 rval1 = rval1.replace(
-                    "{REGEX_KEYWORD}", ctb.conf.regex.values.keywords.regex
+                    "{REGEX_KEYWORD}", ctb.conf["regex"]["values"]["keywords"]["regex"]
                 )
 
-                if actions[a].regex[r].rg_coin > 0:
+                if regex["rg_coin"] > 0:
 
-                    for c in sorted(vars(cc)):
+                    for coin, coin_conf in sorted(cc.items()):
 
-                        if not cc[c].enabled:
+                        if not coin_conf["enabled"]:
                             continue
                         # lg.debug("init_regex(): processing coin %s", c)
 
-                        rval2 = rval1.replace("{REGEX_COIN}", cc[c].regex.units)
-                        rval2 = rval2.replace("{REGEX_ADDRESS}", cc[c].regex.address)
+                        rval2 = rval1.replace(
+                            "{REGEX_COIN}", coin_conf["regex"]["units"]
+                        )
+                        rval2 = rval2.replace(
+                            "{REGEX_ADDRESS}", coin_conf["regex"]["address"]
+                        )
 
-                        if actions[a].regex[r].rg_fiat > 0:
+                        if regex["rg_fiat"] > 0:
 
-                            for f in sorted(vars(fiat)):
+                            for _fiat, fiat_conf in sorted(fiats.items()):
 
-                                if not fiat[f].enabled:
+                                if not fiat_conf["enabled"]:
                                     continue
-                                # lg.debug("init_regex(): processing fiat %s", f)
 
                                 rval3 = rval2.replace(
-                                    "{REGEX_FIAT}", fiat[f].regex.units
+                                    "{REGEX_FIAT}", fiat_conf["regex"]["units"]
                                 )
-                                entry = ctb_misc.DotDict(
-                                    {
-                                        "regex": rval3,
-                                        "action": a,
-                                        "rg_amount": actions[a].regex[r].rg_amount,
-                                        "rg_keyword": actions[a].regex[r].rg_keyword,
-                                        "rg_address": actions[a].regex[r].rg_address,
-                                        "rg_to_user": actions[a].regex[r].rg_to_user,
-                                        "coin": cc[c].unit,
-                                        "fiat": fiat[f].unit,
-                                    }
-                                )
+                                entry = {
+                                    "regex": rval3,
+                                    "action": action,
+                                    "rg_amount": regex["rg_amount"],
+                                    "rg_keyword": regex["rg_keyword"],
+                                    "rg_address": regex["rg_address"],
+                                    "rg_to_user": regex["rg_to_user"],
+                                    "coin": coin_conf["unit"],
+                                    "fiat": fiat_conf["unit"],
+                                }
                                 lg.debug(
                                     "init_regex(): ADDED %s: %s",
-                                    entry.action,
-                                    entry.regex,
+                                    entry["action"],
+                                    entry["regex"],
                                 )
                                 ctb.runtime["regex"].append(entry)
 
                         else:
 
-                            entry = ctb_misc.DotDict(
-                                {
-                                    "regex": rval2,
-                                    "action": a,
-                                    "rg_amount": actions[a].regex[r].rg_amount,
-                                    "rg_keyword": actions[a].regex[r].rg_keyword,
-                                    "rg_address": actions[a].regex[r].rg_address,
-                                    "rg_to_user": actions[a].regex[r].rg_to_user,
-                                    "coin": cc[c].unit,
-                                    "fiat": None,
-                                }
-                            )
+                            entry = {
+                                "regex": rval2,
+                                "action": action,
+                                "rg_amount": regex["rg_amount"],
+                                "rg_keyword": regex["rg_keyword"],
+                                "rg_address": regex["rg_address"],
+                                "rg_to_user": regex["rg_to_user"],
+                                "coin": coin_conf["unit"],
+                                "fiat": None,
+                            }
                             lg.debug(
-                                "init_regex(): ADDED %s: %s", entry.action, entry.regex
+                                "init_regex(): ADDED %s: %s",
+                                entry["action"],
+                                entry["regex"],
                             )
                             ctb.runtime["regex"].append(entry)
 
-                elif actions[a].regex[r].rg_fiat > 0:
+                elif regex["rg_fiat"] > 0:
 
-                    for f in sorted(vars(fiat)):
+                    for _fiat, fiat_conf in sorted(fiats.items()):
 
-                        if not fiat[f].enabled:
+                        if not fiat_conf["enabled"]:
                             continue
                         # lg.debug("init_regex(): processing fiat %s", f)
 
-                        rval2 = rval1.replace("{REGEX_FIAT}", fiat[f].regex.units)
-                        entry = ctb_misc.DotDict(
-                            {
-                                "regex": rval2,
-                                "action": a,
-                                "rg_amount": actions[a].regex[r].rg_amount,
-                                "rg_keyword": actions[a].regex[r].rg_keyword,
-                                "rg_address": actions[a].regex[r].rg_address,
-                                "rg_to_user": actions[a].regex[r].rg_to_user,
-                                "coin": None,
-                                "fiat": fiat[f].unit,
-                            }
+                        rval2 = rval1.replace(
+                            "{REGEX_FIAT}", fiat_conf["regex"]["units"]
                         )
+                        entry = {
+                            "regex": rval2,
+                            "action": action,
+                            "rg_amount": regex["rg_amount"],
+                            "rg_keyword": regex["rg_keyword"],
+                            "rg_address": regex["rg_address"],
+                            "rg_to_user": regex["rg_to_user"],
+                            "coin": None,
+                            "fiat": fiat_conf["unit"],
+                        }
                         lg.debug(
-                            "init_regex(): ADDED %s: %s", entry.action, entry.regex
+                            "init_regex(): ADDED %s: %s",
+                            entry["action"],
+                            entry["regex"],
                         )
                         ctb.runtime["regex"].append(entry)
 
-                elif actions[a].regex[r].rg_keyword > 0:
+                elif regex["rg_keyword"] > 0:
 
-                    entry = ctb_misc.DotDict(
-                        {
-                            "regex": rval1,
-                            "action": a,
-                            "rg_amount": actions[a].regex[r].rg_amount,
-                            "rg_keyword": actions[a].regex[r].rg_keyword,
-                            "rg_address": actions[a].regex[r].rg_address,
-                            "rg_to_user": actions[a].regex[r].rg_to_user,
-                            "coin": None,
-                            "fiat": None,
-                        }
+                    entry = {
+                        "regex": rval1,
+                        "action": action,
+                        "rg_amount": regex["rg_amount"],
+                        "rg_keyword": regex["rg_keyword"],
+                        "rg_address": regex["rg_address"],
+                        "rg_to_user": regex["rg_to_user"],
+                        "coin": None,
+                        "fiat": None,
+                    }
+                    lg.debug(
+                        "init_regex(): ADDED %s: %s", entry["action"], entry["regex"]
                     )
-                    lg.debug("init_regex(): ADDED %s: %s", entry.action, entry.regex)
                     ctb.runtime["regex"].append(entry)
 
     lg.info("< init_regex() DONE (%s expressions)", len(ctb.runtime["regex"]))
@@ -1413,11 +1414,10 @@ def eval_message(msg, ctb):
     lg.debug("> eval_message()")
 
     body = msg.body
-    # lg.info(vars(msg)) #debug
     for r in ctb.runtime["regex"]:
 
         # Attempt a match
-        rg = re.compile(r.regex, re.IGNORECASE | re.DOTALL)
+        rg = re.compile(r["regex"], re.IGNORECASE | re.DOTALL)
         # lg.debug("matching '%s' with '%s'", msg.body, r.regex)
         m = rg.search(body)
 
@@ -1464,7 +1464,7 @@ def eval_comment(comment, ctb):
     for r in ctb.runtime["regex"]:
 
         # Skip non-public actions
-        if not ctb.conf.regex.actions[r.action].public:
+        if not ctb.conf["regex"]["actions"][r.action].public:
             continue
 
         # Attempt a match

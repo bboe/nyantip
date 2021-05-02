@@ -17,6 +17,7 @@
 """
 
 import logging
+import os
 import smtplib
 import sys
 import time
@@ -30,8 +31,7 @@ from jinja2 import Environment, PackageLoader
 from praw.errors import RateLimitExceeded
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 
-from ctb import (ctb_action, ctb_coin, ctb_db, ctb_exchange, ctb_log, ctb_misc,
-                 ctb_user)
+from ctb import ctb_action, ctb_coin, ctb_db, ctb_exchange, ctb_log, ctb_misc, ctb_user
 
 # Configure CointipBot logger
 logging.basicConfig()
@@ -64,13 +64,13 @@ class CointipBot(object):
         # Get handlers
         handlers = {}
         for level in levels:
-            if self.conf.logs.levels[level].enabled:
+            if self.conf["logs"]["levels"][level]["enabled"]:
                 handlers[level] = logging.FileHandler(
-                    self.conf.logs.levels[level].filename,
-                    mode="a" if self.conf.logs.levels[level].append else "w",
+                    self.conf["logs"]["levels"][level]["filename"],
+                    mode="a" if self.conf["logs"]["levels"][level]["append"] else "w",
                 )
                 handlers[level].setFormatter(
-                    logging.Formatter(self.conf.logs.levels[level].format)
+                    logging.Formatter(self.conf["logs"]["levels"][level]["format"])
                 )
 
         # Set handlers
@@ -103,7 +103,7 @@ class CointipBot(object):
         conf = {}
         try:
             prefix = "./conf/"
-            for i in [
+            for name in [
                 "coins",
                 "db",
                 "exchanges",
@@ -114,8 +114,10 @@ class CointipBot(object):
                 "reddit",
                 "regex",
             ]:
-                lg.debug("CointipBot::parse_config(): reading %s%s.yml", prefix, i)
-                conf[i] = yaml.load(open(prefix + i + ".yml"))
+                path = os.path.join("conf", f"{name}.yml")
+                lg.debug("CointipBot::parse_config(): reading %s", path)
+                with open(path) as fp:
+                    conf[name] = yaml.safe_load(fp)
         except yaml.YAMLError as e:
             lg.error("CointipBot::parse_config(): error reading config file: %s", e)
             if hasattr(e, "problem_mark"):
@@ -127,7 +129,7 @@ class CointipBot(object):
             sys.exit(1)
 
         lg.info("CointipBot::parse_config(): config files has been parsed")
-        return ctb_misc.DotDict(conf)
+        return conf
 
     def connect_db(self):
         """
@@ -135,13 +137,17 @@ class CointipBot(object):
         """
         lg.debug("CointipBot::connect_db(): connecting to database...")
 
-        dsn = "mysql+mysqldb://%s:%s@%s:%s/%s?charset=utf8" % (
-            self.conf.db.auth.user,
-            self.conf.db.auth.password,
-            self.conf.db.auth.host,
-            self.conf.db.auth.port,
-            self.conf.db.auth.dbname,
-        )
+        if self.conf["db"]["auth"]["user"]:
+            dsn = "mysql+mysqldb://%s:%s@%s:%s/%s?charset=utf8" % (
+                self.conf["db"]["auth"]["user"],
+                self.conf["db"]["auth"]["password"],
+                self.conf["db"]["auth"]["host"],
+                self.conf["db"]["auth"]["port"],
+                self.conf["db"]["auth"]["dbname"],
+            )
+        else:
+            dsn = f"mysql+mysqldb://{self.conf['db']['auth']['host']}:{self.conf['db']['auth']['port']}/{self.conf['db']['auth']['dbname']}?charset=utf8"
+
         dbobj = ctb_db.CointipBotDatabase(dsn)
 
         try:
@@ -152,8 +158,8 @@ class CointipBot(object):
 
         lg.info(
             "CointipBot::connect_db(): connected to database %s as %s",
-            self.conf.db.auth.dbname,
-            self.conf.db.auth.user,
+            self.conf["db"]["auth"]["dbname"],
+            self.conf["db"]["auth"]["user"] or "anonymous",
         )
         return conn
 
@@ -163,12 +169,18 @@ class CointipBot(object):
         """
         lg.debug("CointipBot::connect_reddit(): connecting to Reddit...")
 
-        conn = praw.Reddit(user_agent=self.conf.reddit.auth.user)
-        conn.login(self.conf.reddit.auth.user, self.conf.reddit.auth.password)
+        conn = praw.Reddit(
+            user_agent=self.conf["reddit"]["auth"]["user"], check_for_updates=False
+        )
+        conn.login(
+            self.conf["reddit"]["auth"]["user"],
+            self.conf["reddit"]["auth"]["password"],
+            disable_warning=True,
+        )
 
         lg.info(
             "CointipBot::connect_reddit(): logged in to Reddit as %s",
-            self.conf.reddit.auth.user,
+            self.conf["reddit"]["auth"]["user"],
         )
         return conn
 
@@ -178,7 +190,7 @@ class CointipBot(object):
         """
 
         # Ensure bot is a registered user
-        b = ctb_user.CtbUser(name=self.conf.reddit.auth.user.lower(), ctb=self)
+        b = ctb_user.CtbUser(name=self.conf["reddit"]["auth"]["user"].lower(), ctb=self)
         if not b.is_registered():
             b.register()
 
@@ -226,7 +238,7 @@ class CointipBot(object):
         """
 
         # Calculate timestamp
-        seconds = int(self.conf.misc.times.expire_pending_hours * 3600)
+        seconds = int(self.conf["misc"]["times"]["expire_pending_hours"] * 3600)
         created_before = time.mktime(time.gmtime()) - seconds
         counter = 0
 
@@ -254,7 +266,8 @@ class CointipBot(object):
             # Try to fetch some messages
             messages = list(
                 ctb_misc.praw_call(
-                    self.reddit.get_unread, limit=self.conf.reddit.scan.batch_limit
+                    self.reddit.get_unread,
+                    limit=self.conf["reddit"]["scan"]["batch_limit"],
                 )
             )
             messages.reverse()
@@ -285,14 +298,15 @@ class CointipBot(object):
                 # Ignore self messages
                 if (
                     m.author
-                    and m.author.name.lower() == self.conf.reddit.auth.user.lower()
+                    and m.author.name.lower()
+                    == self.conf["reddit"]["auth"]["user"].lower()
                 ):
                     lg.debug("CointipBot::check_inbox(): ignoring message from self")
                     ctb_misc.praw_call(m.mark_as_read)
                     continue
 
                 # Ignore messages from banned users
-                if m.author and self.conf.reddit.banned_users:
+                if m.author and self.conf["reddit"]["banned_users"]:
                     lg.debug(
                         "CointipBot::check_inbox(): checking whether user '%s' is banned..."
                         % m.author
@@ -328,7 +342,7 @@ class CointipBot(object):
                     action.do()
                 else:
                     lg.info("CointipBot::check_inbox(): no match")
-                    if self.conf.reddit.messages.sorry and m.subject not in [
+                    if self.conf["reddit"]["messages"]["sorry"] and m.subject not in [
                         "post reply",
                         "comment reply",
                     ]:
@@ -354,7 +368,7 @@ class CointipBot(object):
 
         except (HTTPError, ConnectionError, Timeout, RateLimitExceeded, timeout) as e:
             lg.warning("CointipBot::check_inbox(): Reddit is down (%s), sleeping", e)
-            time.sleep(self.conf.misc.times.sleep_seconds)
+            time.sleep(self.conf["misc"]["times"]["sleep_seconds"])
             pass
         except Exception as e:
             lg.exception("CointipBot::check_inbox(): %s", e)
@@ -376,15 +390,17 @@ class CointipBot(object):
 
         try:
 
-            if not hasattr(self.conf.reddit, "subreddits"):
+            if "subreddits" not in self.conf["reddit"]:
                 my_reddits_list = None
                 my_reddits_string = None
 
-                if hasattr(self.conf.reddit.scan, "these_subreddits"):
+                if "these_subreddits" in self.conf["reddit"]["scan"]:
                     # Subreddits are specified in conf.yml
-                    my_reddits_list = list(self.conf.reddit.scan.these_subreddits)
+                    my_reddits_list = list(
+                        self.conf["reddit"]["scan"]["these_subreddits"]
+                    )
 
-                elif self.conf.reddit.scan.my_subreddits:
+                elif self.conf["reddit"]["scan"]["my_subreddits"]:
                     # Subreddits are subscribed to by bot user
                     my_reddits = ctb_misc.praw_call(
                         self.reddit.get_my_subreddits, limit=None
@@ -409,7 +425,7 @@ class CointipBot(object):
                     "CointipBot::check_subreddits(): multi-reddit string: %s",
                     my_reddits_string,
                 )
-                self.conf.reddit.subreddits = ctb_misc.praw_call(
+                self.conf["reddit"]["subreddits"] = ctb_misc.praw_call(
                     self.reddit.get_subreddit, my_reddits_string
                 )
 
@@ -431,26 +447,26 @@ class CointipBot(object):
 
             # Get last_processed_comment_time if necessary
             if (
-                not hasattr(self.conf.reddit, "last_processed_comment_time")
-                or self.conf.reddit.last_processed_comment_time <= 0
+                not hasattr(self.conf["reddit"], "last_processed_comment_time")
+                or self.conf["reddit"]["last_processed_comment_time"] <= 0
             ):
-                self.conf.reddit.last_processed_comment_time = ctb_misc.get_value(
+                self.conf["reddit"]["last_processed_comment_time"] = ctb_misc.get_value(
                     conn=self.db, param0="last_processed_comment_time"
                 )
             updated_last_processed_time = 0
 
             # Fetch comments from subreddits
             my_comments = ctb_misc.praw_call(
-                self.conf.reddit.subreddits.get_comments,
-                limit=self.conf.reddit.scan.batch_limit,
+                self.conf["reddit"].subreddits.get_comments,
+                limit=self.conf["reddit"]["scan"]["batch_limit"],
             )
 
             # Match each comment against regex
             counter = 0
             for c in my_comments:
                 # Stop processing if old comment reached
-                # lg.debug("check_subreddits(): c.id %s from %s, %s <= %s", c.id, c.subreddit.display_name, c.created_utc, self.conf.reddit.last_processed_comment_time)
-                if c.created_utc <= self.conf.reddit.last_processed_comment_time:
+                # lg.debug("check_subreddits(): c.id %s from %s, %s <= %s", c.id, c.subreddit.display_name, c.created_utc, self.conf['reddit'].last_processed_comment_time)
+                if c.created_utc <= self.conf["reddit"].last_processed_comment_time:
                     lg.debug("CointipBot::check_subreddits(): old comment reached")
                     break
                 counter += 1
@@ -466,7 +482,7 @@ class CointipBot(object):
                     continue
 
                 # Ignore comments from banned users
-                if c.author and self.conf.reddit.banned_users:
+                if c.author and self.conf["reddit"]["banned_users"]:
                     lg.debug(
                         "CointipBot::check_subreddits(): checking whether user '%s' is banned..."
                         % c.author
@@ -500,17 +516,17 @@ class CointipBot(object):
                     lg.info("CointipBot::check_subreddits(): no match")
 
             lg.debug("CointipBot::check_subreddits(): %s comments processed", counter)
-            if counter >= self.conf.reddit.scan.batch_limit - 1:
+            if counter >= self.conf["reddit"]["scan"]["batch_limit"] - 1:
                 lg.warning(
                     "CointipBot::check_subreddits(): conf.reddit.scan.batch_limit (%s) was not large enough to process all comments",
-                    self.conf.reddit.scan.batch_limit,
+                    self.conf["reddit"]["scan"]["batch_limit"],
                 )
 
         except (HTTPError, RateLimitExceeded, timeout) as e:
             lg.warning(
                 "CointipBot::check_subreddits(): Reddit is down (%s), sleeping", e
             )
-            time.sleep(self.conf.misc.times.sleep_seconds)
+            time.sleep(self.conf["misc"]["times"]["sleep_seconds"])
             pass
         except Exception as e:
             lg.error("CointipBot::check_subreddits(): coudln't fetch comments: %s", e)
@@ -518,11 +534,13 @@ class CointipBot(object):
 
         # Save updated last_processed_time value
         if updated_last_processed_time > 0:
-            self.conf.reddit.last_processed_comment_time = updated_last_processed_time
+            self.conf[
+                "reddit"
+            ].last_processed_comment_time = updated_last_processed_time
         ctb_misc.set_value(
             conn=self.db,
             param0="last_processed_comment_time",
-            value0=self.conf.reddit.last_processed_comment_time,
+            value0=self.conf["reddit"].last_processed_comment_time,
         )
 
         lg.debug("< CointipBot::check_subreddits() DONE")
@@ -535,31 +553,29 @@ class CointipBot(object):
 
         # Return if rate has been checked in the past hour
         seconds = int(1 * 3600)
-        if hasattr(
-            self.conf.exchanges, "last_refresh"
-        ) and self.conf.exchanges.last_refresh + seconds > int(
-            time.mktime(time.gmtime())
-        ):
+        if hasattr(self.conf["exchanges"], "last_refresh") and self.conf[
+            "exchanges"
+        ].last_refresh + seconds > int(time.mktime(time.gmtime())):
             lg.debug("< CointipBot::refresh_ev(): DONE (skipping)")
             return
 
         # For each enabled coin...
-        for c in vars(self.conf.coins):
-            if self.conf.coins[c].enabled:
+        for coin, coin_conf in self.conf["coins"].items():
+            if coin_conf["enabled"]:
 
                 # Get BTC/coin exchange rate
                 values = []
                 result = 0.0
 
-                if not self.conf.coins[c].unit == "btc":
+                if not coin_conf["unit"] == "btc":
                     # For each exchange that supports this coin...
-                    for e in self.exchanges:
-                        if self.exchanges[e].supports_pair(
-                            _name1=self.conf.coins[c].unit, _name2="btc"
+                    for exchange in self.exchanges:
+                        if self.exchanges[exchange].supports_pair(
+                            _name1=coin_conf["unit"], _name2="btc"
                         ):
                             # Get ticker value from exchange
-                            value = self.exchanges[e].get_ticker_value(
-                                _name1=self.conf.coins[c].unit, _name2="btc"
+                            value = self.exchanges[exchange].get_ticker_value(
+                                _name1=coin_conf["unit"], _name2="btc"
                             )
                             if value and float(value) > 0.0:
                                 values.append(float(value))
@@ -573,26 +589,26 @@ class CointipBot(object):
                     result = 1.0
 
                 # Assign result to self.runtime['ev']
-                if c not in self.runtime["ev"]:
-                    self.runtime["ev"][c] = {}
-                self.runtime["ev"][c]["btc"] = result
+                if coin not in self.runtime["ev"]:
+                    self.runtime["ev"][coin] = {}
+                self.runtime["ev"][coin]["btc"] = result
 
         # For each enabled fiat...
-        for f in vars(self.conf.fiat):
-            if self.conf.fiat[f].enabled:
+        for fiat, fiat_conf in self.conf["fiat"].items():
+            if fiat_conf["enabled"]:
 
                 # Get fiat/BTC exchange rate
                 values = []
                 result = 0.0
 
                 # For each exchange that supports this fiat...
-                for e in self.exchanges:
-                    if self.exchanges[e].supports_pair(
-                        _name1="btc", _name2=self.conf.fiat[f].unit
+                for exchange in self.exchanges:
+                    if self.exchanges[exchange].supports_pair(
+                        _name1="btc", _name2=fiat_conf["unit"]
                     ):
                         # Get ticker value from exchange
-                        value = self.exchanges[e].get_ticker_value(
-                            _name1="btc", _name2=self.conf.fiat[f].unit
+                        value = self.exchanges[exchange].get_ticker_value(
+                            _name1="btc", _name2=fiat_conf["unit"]
                         )
                         if value and float(value) > 0.0:
                             values.append(float(value))
@@ -604,12 +620,12 @@ class CointipBot(object):
                 # Assign result to self.runtime['ev']
                 if "btc" not in self.runtime["ev"]:
                     self.runtime["ev"]["btc"] = {}
-                self.runtime["ev"]["btc"][f] = result
+                self.runtime["ev"]["btc"][fiat] = result
 
         lg.debug("CointipBot::refresh_ev(): %s", self.runtime["ev"])
 
         # Update last_refresh
-        self.conf.exchanges.last_refresh = int(time.mktime(time.gmtime()))
+        self.conf["exchanges"]["last_refresh"] = int(time.mktime(time.gmtime()))
 
     def coin_value(self, _coin, _fiat):
         """
@@ -629,20 +645,21 @@ class CointipBot(object):
 
         # Construct MIME message
         msg = MIMEText(_msg)
-        msg["Subject"] = self.conf.misc.notify.subject
-        msg["From"] = self.conf.misc.notify.addr_from
-        msg["To"] = self.conf.misc.notify.addr_to
+        msg["Subject"] = self.conf["misc"]["notify"]["subject"]
+        msg["From"] = self.conf["misc"]["notify"]["addr_from"]
+        msg["To"] = self.conf["misc"]["notify"]["addr_to"]
 
         # Send MIME message
-        server = smtplib.SMTP(self.conf.misc.notify.smtp_host)
-        if self.conf.misc.notify.smtp_tls:
+        server = smtplib.SMTP(self.conf["misc"]["notify"]["smtp_host"])
+        if self.conf["misc"]["notify"]["smtp_tls"]:
             server.starttls()
         server.login(
-            self.conf.misc.notify.smtp_username, self.conf.misc.notify.smtp_password
+            self.conf["misc"]["notify"]["smtp_username"],
+            self.conf["misc"]["notify"]["smtp_password"],
         )
         server.sendmail(
-            self.conf.misc.notify.addr_from,
-            self.conf.misc.notify.addr_to,
+            self.conf["misc"]["notify"]["addr_from"],
+            self.conf["misc"]["notify"]["addr_to"],
             msg.as_string(),
         )
         server.quit()
@@ -678,10 +695,10 @@ class CointipBot(object):
             self.db = self.connect_db()
 
         # Coins
-        if init_coins:
-            for c in vars(self.conf.coins):
-                if self.conf.coins[c].enabled:
-                    self.coins[c] = ctb_coin.CtbCoin(_conf=self.conf.coins[c])
+        if init_coins and self.conf["coins"]:
+            for coin, coin_conf in self.conf["coins"].items():
+                if coin_conf["enabled"]:
+                    self.coins[coin] = ctb_coin.CtbCoin(_conf=coin_conf)
             if not len(self.coins) > 0:
                 lg.error(
                     "CointipBot::__init__(): Error: please enable at least one type of coin"
@@ -689,11 +706,11 @@ class CointipBot(object):
                 sys.exit(1)
 
         # Exchanges
-        if init_exchanges:
-            for e in vars(self.conf.exchanges):
-                if self.conf.exchanges[e].enabled:
-                    self.exchanges[e] = ctb_exchange.CtbExchange(
-                        _conf=self.conf.exchanges[e]
+        if init_exchanges and self.conf["exchanges"]:
+            for exchange, exchange_conf in self.conf["exchanges"].items():
+                if self.conf["exchanges"][exchange]["enabled"]:
+                    self.exchanges[exchange] = ctb_exchange.CtbExchange(
+                        _conf=self.conf["exchanges"][exchange]
                     )
             if not len(self.exchanges) > 0:
                 lg.warning("Cointipbot::__init__(): Warning: no exchanges are enabled")
@@ -711,8 +728,8 @@ class CointipBot(object):
 
         lg.info(
             "< CointipBot::__init__(): DONE, batch-limit = %s, sleep-seconds = %s",
-            self.conf.reddit.scan.batch_limit,
-            self.conf.misc.times.sleep_seconds,
+            self.conf["reddit"]["scan"]["batch_limit"],
+            self.conf["misc"]["times"]["sleep_seconds"],
         )
 
     def __str__(self):
@@ -721,8 +738,8 @@ class CointipBot(object):
         """
         me = "<CointipBot: sleepsec=%s, batchlim=%s, ev=%s"
         me = me % (
-            self.conf.misc.times.sleep_seconds,
-            self.conf.reddit.scan.batch_limit,
+            self.conf["misc"]["times"]["sleep_seconds"],
+            self.conf["reddit"]["scan"]["batch_limit"],
             self.runtime["ev"],
         )
         return me
@@ -747,21 +764,21 @@ class CointipBot(object):
 
                 # Check subreddit comments for tips
                 # or not. fuck that. u mentions only
-                #                if self.conf.reddit.scan.my_subreddits or hasattr(self.conf.reddit.scan, 'these_subreddits'):
+                #                if self.conf['reddit'].scan.my_subreddits or hasattr(self.conf['reddit'].scan, 'these_subreddits'):
                 #                    self.check_subreddits()
 
                 # Sleep
                 lg.debug(
                     "CointipBot::main(): sleeping for %s seconds...",
-                    self.conf.misc.times.sleep_seconds,
+                    self.conf["misc"]["times"]["sleep_seconds"],
                 )
-                time.sleep(self.conf.misc.times.sleep_seconds)
+                time.sleep(self.conf["misc"]["times"]["sleep_seconds"])
 
             except Exception as e:
                 lg.error("CointipBot::main(): exception: %s", e)
                 tb = traceback.format_exc()
                 lg.error("CointipBot::main(): traceback: %s", tb)
                 # Send a notification, if enabled
-                if self.conf.misc.notify.enabled:
+                if self.conf["misc"]["notify"]["enabled"]:
                     self.notify(_msg=tb)
                 sys.exit(1)

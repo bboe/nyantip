@@ -37,20 +37,22 @@ class CtbExchange(object):
 
         if (
             not _conf
-            or not hasattr(_conf, "urlpaths")
-            or not hasattr(_conf, "jsonpaths")
-            or not hasattr(_conf, "coinlist")
-            or not hasattr(_conf, "fiatlist")
+            or "urlpaths" not in _conf
+            or "jsonpaths" not in _conf
+            or "coinlist" not in _conf
+            or "fiatlist" not in _conf
         ):
             raise Exception("CtbExchange::__init__(): _conf is empty or invalid")
 
         self.conf = _conf
 
         # Convert coinlist and fiatlist values to lowercase
-        self.conf.coinlist = map(lambda x: x.lower(), self.conf.coinlist)
-        self.conf.fiatlist = map(lambda x: x.lower(), self.conf.fiatlist)
+        self.conf["coinlist"] = map(lambda x: x.lower(), self.conf["coinlist"])
+        self.conf["fiatlist"] = map(lambda x: x.lower(), self.conf["fiatlist"])
 
-        lg.debug("CtbExchange::__init__(): initialized exchange %s" % self.conf.domain)
+        lg.debug(
+            "CtbExchange::__init__(): initialized exchange %s" % self.conf["domain"]
+        )
 
     def supports(self, _name=None):
         """
@@ -62,7 +64,7 @@ class CtbExchange(object):
 
         name = str(_name).lower()
 
-        if name in self.conf.coinlist or name in self.conf.fiatlist:
+        if name in self.conf["coinlist"] or name in self.conf["fiatlist"]:
             # lg.debug("CtbExchange::supports(%s): YES" % name)
             return True
         else:
@@ -87,19 +89,19 @@ class CtbExchange(object):
         if not self.supports_pair(_name1=_name1, _name2=_name2):
             raise Exception(
                 "CtbExchange::get_ticker_value(%s, %s, %s): pair not supported"
-                % (self.conf.domain, _name1, _name2)
+                % (self.conf["domain"], _name1, _name2)
             )
 
         results = []
-        for myurlpath in self.conf.urlpaths:
-            for myjsonpath in self.conf.jsonpaths:
+        for myurlpath in self.conf["urlpaths"]:
+            for myjsonpath in self.conf["jsonpaths"]:
 
                 toreplace = {
                     "{THING_FROM}": _name1.upper()
-                    if self.conf.uppercase
+                    if self.conf["uppercase"]
                     else _name1.lower(),
                     "{THING_TO}": _name2.upper()
-                    if self.conf.uppercase
+                    if self.conf["uppercase"]
                     else _name2.lower(),
                 }
                 for t in toreplace:
@@ -109,23 +111,23 @@ class CtbExchange(object):
                 try:
                     lg.debug(
                         "CtbExchange::get_ticker_value(%s, %s, %s): calling %s to get %s...",
-                        self.conf.domain,
+                        self.conf["domain"],
                         _name1,
                         _name2,
                         myurlpath,
                         myjsonpath,
                     )
-                    if self.conf.https:
-                        connection = http.client.HTTPSConnection(self.conf.domain)
+                    if self.conf["https"]:
+                        connection = http.client.HTTPSConnection(self.conf["domain"])
                         connection.request("GET", myurlpath, {}, {})
                     else:
-                        connection = http.client.HTTPConnection(self.conf.domain)
+                        connection = http.client.HTTPConnection(self.conf["domain"])
                         connection.request("GET", myurlpath)
                     response = json.loads(connection.getresponse().read())
                     result = xpath_get(response, myjsonpath)
                     lg.debug(
                         "CtbExchange::get_ticker_value(%s, %s, %s): result: %.6f",
-                        self.conf.domain,
+                        self.conf["domain"],
                         _name1,
                         _name2,
                         float(result),
@@ -134,7 +136,7 @@ class CtbExchange(object):
                 except (http.client.HTTPException, Exception) as e:
                     lg.error(
                         "CtbExchange::get_ticker_value(%s, %s, %s): %s",
-                        self.conf.domain,
+                        self.conf["domain"],
                         _name1,
                         _name2,
                         e,

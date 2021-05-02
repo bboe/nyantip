@@ -56,19 +56,21 @@ class CtbUser(object):
             self.prawobj = redditobj
 
         # Determine if user is banned
-        if ctb.conf.reddit.banned_users:
-            if ctb.conf.reddit.banned_users.method == "subreddit":
-                for u in ctb.reddit.get_banned(ctb.conf.reddit.banned_users.subreddit):
+        if ctb.conf["reddit"]["banned_users"]:
+            if ctb.conf["reddit"]["banned_users"]["method"] == "subreddit":
+                for u in ctb.reddit.get_banned(
+                    ctb.conf["reddit"]["banned_users"].subreddit
+                ):
                     if self.name.lower() == u.name.lower():
                         self.banned = True
-            elif ctb.conf.reddit.banned_users.method == "list":
-                for u in ctb.conf.reddit.banned_users.list:
-                    if self.name.lower() == u.lower():
+            elif ctb.conf["reddit"]["banned_users"]["method"] == "list":
+                for username in ctb.conf["reddit"]["banned_users"]["list"]:
+                    if self.name.lower() == username.lower():
                         self.banned = True
             else:
                 lg.warning(
                     "CtbUser::__init__(): invalid method '%s' in banned_users config"
-                    % ctb.conf.reddit.banned_users.method
+                    % ctb.conf["reddit"].banned_users.method
                 )
 
         lg.debug("< CtbUser::__init__(%s) DONE", name)
@@ -101,7 +103,7 @@ class CtbUser(object):
         # Ask coin daemon for account balance
         lg.info("CtbUser::balance(%s): getting %s %s balance", self.name, coin, kind)
         balance = self.ctb.coins[coin].getbalance(
-            _user=self.name, _minconf=self.ctb.conf.coins[coin].minconf[kind]
+            _user=self.name, _minconf=self.ctb.conf["coins"][coin]["minconf"][kind]
         )
 
         lg.debug("< CtbUser::balance(%s) DONE", self.name)
@@ -323,7 +325,7 @@ class CtbUser(object):
             return (None, None)
 
         # First, determine fiat value due to link karma
-        link_mul = self.ctb.conf.reddit.redeem.multiplier.link
+        link_mul = self.ctb.conf["reddit"].redeem.multiplier.link
         if type(link_mul) in [str, unicode]:
             link_mul = eval(link_mul)
         if not type(link_mul) == float:
@@ -333,7 +335,7 @@ class CtbUser(object):
         link_val = float(self.prawobj.link_karma) * link_mul
 
         # Second, determine fiat value due to comment karma
-        comm_mul = self.ctb.conf.reddit.redeem.multiplier.comment
+        comm_mul = self.ctb.conf["reddit"].redeem.multiplier.comment
         if type(comm_mul) in [str, unicode]:
             comm_mul = eval(comm_mul)
         if not type(comm_mul) == float:
@@ -343,7 +345,7 @@ class CtbUser(object):
         comm_val = float(self.prawobj.comment_karma) * comm_mul
 
         # Third, determine base fiat value from config
-        base_val = self.ctb.conf.reddit.redeem.base
+        base_val = self.ctb.conf["reddit"].redeem.base
         if type(base_val) in [str, unicode]:
             base_val = eval(base_val)
         if not type(base_val) == float:
@@ -355,8 +357,8 @@ class CtbUser(object):
         total_fiat = link_val + comm_val + base_val
 
         # Check if above maximum
-        if total_fiat > self.ctb.conf.reddit.redeem.maximum:
-            total_fiat = self.ctb.conf.reddit.redeem.maximum
+        if total_fiat > self.ctb.conf["reddit"].redeem.maximum:
+            total_fiat = self.ctb.conf["reddit"].redeem.maximum
 
         # Determine total coin value using exchange rate
         total_coin = total_fiat / coin_value
