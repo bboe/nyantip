@@ -15,14 +15,23 @@
     along with ALTcointip.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import cointipbot, logging
+import logging
+
+import cointipbot
 from ctb import ctb_stats
 
 logging.basicConfig()
-lg = logging.getLogger('cointipbot')
+lg = logging.getLogger("cointipbot")
 lg.setLevel(logging.DEBUG)
 
-ctb = cointipbot.CointipBot(self_checks=False, init_reddit=True, init_coins=False, init_exchanges=False, init_db=True, init_logging=False)
+ctb = cointipbot.CointipBot(
+    self_checks=False,
+    init_reddit=True,
+    init_coins=False,
+    init_exchanges=False,
+    init_db=True,
+    init_logging=False,
+)
 
 # Update stats page
 result = ctb_stats.update_stats(ctb=ctb)
@@ -33,5 +42,5 @@ result = ctb_stats.update_tips(ctb=ctb)
 lg.debug(result)
 
 # This isn't needed because it happens during the tip processing
-#result = ctb_stats.update_all_user_stats(ctb=ctb)
-#lg.debug(result)
+# result = ctb_stats.update_all_user_stats(ctb=ctb)
+# lg.debug(result)

@@ -15,11 +15,12 @@
     along with ALTcointip.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import logging
+
 import ctb_misc
 
-import logging, time, praw, re
+lg = logging.getLogger("cointipbot")
 
-lg = logging.getLogger('cointipbot')
 
 class CtbUser(object):
     """
@@ -27,15 +28,15 @@ class CtbUser(object):
     """
 
     # Basic properties
-    name=None
-    giftamount=None
-    joindate=None
-    addr={}
-    banned=False
+    name = None
+    giftamount = None
+    joindate = None
+    addr = {}
+    banned = False
 
     # Objects
-    prawobj=None
-    ctb=None
+    prawobj = None
+    ctb = None
 
     def __init__(self, name=None, redditobj=None, ctb=None):
         """
@@ -56,16 +57,19 @@ class CtbUser(object):
 
         # Determine if user is banned
         if ctb.conf.reddit.banned_users:
-            if ctb.conf.reddit.banned_users.method == 'subreddit':
+            if ctb.conf.reddit.banned_users.method == "subreddit":
                 for u in ctb.reddit.get_banned(ctb.conf.reddit.banned_users.subreddit):
                     if self.name.lower() == u.name.lower():
                         self.banned = True
-            elif ctb.conf.reddit.banned_users.method == 'list':
+            elif ctb.conf.reddit.banned_users.method == "list":
                 for u in ctb.conf.reddit.banned_users.list:
                     if self.name.lower() == u.lower():
                         self.banned = True
             else:
-                lg.warning("CtbUser::__init__(): invalid method '%s' in banned_users config" % ctb.conf.reddit.banned_users.method)
+                lg.warning(
+                    "CtbUser::__init__(): invalid method '%s' in banned_users config"
+                    % ctb.conf.reddit.banned_users.method
+                )
 
         lg.debug("< CtbUser::__init__(%s) DONE", name)
 
@@ -74,7 +78,15 @@ class CtbUser(object):
         Return string representation of self
         """
         me = "<CtbUser: name=%s, giftamnt=%s, joindate=%s, addr=%s, redditobj=%s, ctb=%s, banned=%s>"
-        me = me % (self.name, self.giftamount, self.joindate, self.addr, self.prawobj, self.ctb, self.banned)
+        me = me % (
+            self.name,
+            self.giftamount,
+            self.joindate,
+            self.addr,
+            self.prawobj,
+            self.ctb,
+            self.banned,
+        )
         return me
 
     def get_balance(self, coin=None, kind=None):
@@ -88,7 +100,9 @@ class CtbUser(object):
 
         # Ask coin daemon for account balance
         lg.info("CtbUser::balance(%s): getting %s %s balance", self.name, coin, kind)
-        balance = self.ctb.coins[coin].getbalance(_user=self.name, _minconf=self.ctb.conf.coins[coin].minconf[kind])
+        balance = self.ctb.coins[coin].getbalance(
+            _user=self.name, _minconf=self.ctb.conf.coins[coin].minconf[kind]
+        )
 
         lg.debug("< CtbUser::balance(%s) DONE", self.name)
         return float(balance)
@@ -103,16 +117,25 @@ class CtbUser(object):
             return self.addr[coin]
 
         sql = "SELECT address from t_addrs WHERE username = %s AND coin = %s"
-        mysqlrow = self.ctb.db.execute(sql, (self.name.lower(), coin.lower())).fetchone()
+        mysqlrow = self.ctb.db.execute(
+            sql, (self.name.lower(), coin.lower())
+        ).fetchone()
         if mysqlrow is None:
             lg.debug("< CtbUser::get_addr(%s, %s) DONE (no)", self.name, coin)
             return None
         else:
-            self.addr[coin] = mysqlrow['address']
-            lg.debug("< CtbUser::get_addr(%s, %s) DONE (%s)", self.name, coin, self.addr[coin])
+            self.addr[coin] = mysqlrow["address"]
+            lg.debug(
+                "< CtbUser::get_addr(%s, %s) DONE (%s)",
+                self.name,
+                coin,
+                self.addr[coin],
+            )
             return self.addr[coin]
 
-        lg.debug("< CtbUser::get_addr(%s, %s) DONE (should never happen)", self.name, coin)
+        lg.debug(
+            "< CtbUser::get_addr(%s, %s) DONE (should never happen)", self.name, coin
+        )
         return None
 
     def is_on_reddit(self):
@@ -133,11 +156,13 @@ class CtbUser(object):
             else:
                 return False
 
-        except Exception as e:
+        except Exception:
             lg.debug("< CtbUser::is_on_reddit(%s) DONE (no)", self.name)
             return False
 
-        lg.warning("< CtbUser::is_on_reddit(%s): returning None (shouldn't happen)", self.name)
+        lg.warning(
+            "< CtbUser::is_on_reddit(%s): returning None (shouldn't happen)", self.name
+        )
         return None
 
     def is_registered(self):
@@ -158,32 +183,47 @@ class CtbUser(object):
             else:
                 # Next, check t_addrs table for whether  user has correct number of coin addresses
                 sql_coins = "SELECT COUNT(*) AS count FROM t_addrs WHERE username = %s"
-                mysqlrow_coins = self.ctb.db.execute(sql_coins, (self.name.lower())).fetchone()
+                mysqlrow_coins = self.ctb.db.execute(
+                    sql_coins, (self.name.lower())
+                ).fetchone()
 
-                if int(mysqlrow_coins['count']) != len(self.ctb.coins):
-                    if int(mysqlrow_coins['count']) == 0:
+                if int(mysqlrow_coins["count"]) != len(self.ctb.coins):
+                    if int(mysqlrow_coins["count"]) == 0:
                         # Bot probably crashed during user registration process
                         # Delete user
-                        lg.warning("CtbUser::is_registered(%s): deleting user, incomplete registration", self.name)
+                        lg.warning(
+                            "CtbUser::is_registered(%s): deleting user, incomplete registration",
+                            self.name,
+                        )
                         sql_delete = "DELETE FROM t_users WHERE username = %s"
-                        mysql_res = self.ctb.db.execute(sql_delete, (self.name.lower()))
+                        self.ctb.db.execute(sql_delete, (self.name.lower()))
                         # User is not registered
                         return False
                     else:
-                        raise Exception("CtbUser::is_registered(%s): user has %s coins but %s active" % (self.name, mysqlrow_coins['count'], len(self.ctb.coins)))
+                        raise Exception(
+                            "CtbUser::is_registered(%s): user has %s coins but %s active"
+                            % (self.name, mysqlrow_coins["count"], len(self.ctb.coins))
+                        )
 
                 # Set some properties
-                self.giftamount = mysqlrow['giftamount']
+                self.giftamount = mysqlrow["giftamount"]
 
                 # Done
                 lg.debug("< CtbUser::is_registered(%s) DONE (yes)", self.name)
                 return True
 
-        except Exception, e:
-            lg.error("CtbUser::is_registered(%s): error while executing <%s>: %s", self.name, sql % self.name.lower(), e)
+        except Exception as e:
+            lg.error(
+                "CtbUser::is_registered(%s): error while executing <%s>: %s",
+                self.name,
+                sql % self.name.lower(),
+                e,
+            )
             raise
 
-        lg.warning("< CtbUser::is_registered(%s): returning None (shouldn't happen)", self.name)
+        lg.warning(
+            "< CtbUser::is_registered(%s): returning None (shouldn't happen)", self.name
+        )
         return None
 
     def tell(self, subj=None, msg=None, msgobj=None):
@@ -219,28 +259,45 @@ class CtbUser(object):
             sql_adduser = "INSERT INTO t_users (username) VALUES (%s)"
             mysqlexec = self.ctb.db.execute(sql_adduser, (self.name.lower()))
             if mysqlexec.rowcount <= 0:
-                raise Exception("CtbUser::register(%s): rowcount <= 0 while executing <%s>" % ( self.name, sql_adduser % (self.name.lower()) ))
-        except Exception, e:
-            lg.error("CtbUser::register(%s): exception while executing <%s>: %s", self.name, sql_adduser % (self.name.lower()), e)
+                raise Exception(
+                    "CtbUser::register(%s): rowcount <= 0 while executing <%s>"
+                    % (self.name, sql_adduser % (self.name.lower()))
+                )
+        except Exception as e:
+            lg.error(
+                "CtbUser::register(%s): exception while executing <%s>: %s",
+                self.name,
+                sql_adduser % (self.name.lower()),
+                e,
+            )
             raise
 
         # Get new coin addresses
         new_addrs = {}
         for c in self.ctb.coins:
             new_addrs[c] = self.ctb.coins[c].getnewaddr(_user=self.name.lower())
-            lg.info("CtbUser::register(%s): got %s address %s", self.name, c, new_addrs[c])
+            lg.info(
+                "CtbUser::register(%s): got %s address %s", self.name, c, new_addrs[c]
+            )
 
         # Add coin addresses to database
         for c in new_addrs:
             try:
-                sql_addr = "REPLACE INTO t_addrs (username, coin, address) VALUES (%s, %s, %s)"
-                mysqlexec = self.ctb.db.execute(sql_addr, (self.name.lower(), c, new_addrs[c]))
+                sql_addr = (
+                    "REPLACE INTO t_addrs (username, coin, address) VALUES (%s, %s, %s)"
+                )
+                mysqlexec = self.ctb.db.execute(
+                    sql_addr, (self.name.lower(), c, new_addrs[c])
+                )
                 if mysqlexec.rowcount <= 0:
                     # Undo change to database
                     delete_user(_username=self.name.lower(), _db=self.ctb.db)
-                    raise Exception("CtbUser::register(%s): rowcount <= 0 while executing <%s>" % (self.name, sql_addr % (self.name.lower(), c, new_addrs[c])))
+                    raise Exception(
+                        "CtbUser::register(%s): rowcount <= 0 while executing <%s>"
+                        % (self.name, sql_addr % (self.name.lower(), c, new_addrs[c]))
+                    )
 
-            except Exception, e:
+            except Exception:
                 # Undo change to database
                 delete_user(_username=self.name.lower(), _db=self.ctb.db)
                 raise
@@ -254,9 +311,9 @@ class CtbUser(object):
         """
         lg.debug("> CtbUser::get_redeem_amount(%s)", coin)
 
-        if not coin or not self.ctb.coins.has_key(coin):
+        if not coin or coin not in self.ctb.coins:
             raise Exception("CtbUser::get_redeem_amount(%s): invalid coin" % coin)
-        if not fiat or not self.ctb.conf.fiat.has_key(fiat):
+        if not fiat or fiat not in self.ctb.conf.fiat:
             raise Exception("CtbUser::get_redeem_amount(%s): invalid fiat" % fiat)
 
         # Check if we have coin's fiat value
@@ -270,7 +327,9 @@ class CtbUser(object):
         if type(link_mul) in [str, unicode]:
             link_mul = eval(link_mul)
         if not type(link_mul) == float:
-            raise Exception("CtbUser::get_redeem_amount(): type of link_mul is not float")
+            raise Exception(
+                "CtbUser::get_redeem_amount(): type of link_mul is not float"
+            )
         link_val = float(self.prawobj.link_karma) * link_mul
 
         # Second, determine fiat value due to comment karma
@@ -278,7 +337,9 @@ class CtbUser(object):
         if type(comm_mul) in [str, unicode]:
             comm_mul = eval(comm_mul)
         if not type(comm_mul) == float:
-            raise Exception("CtbUser::get_redeem_amount(): type of comm_mul is not float")
+            raise Exception(
+                "CtbUser::get_redeem_amount(): type of comm_mul is not float"
+            )
         comm_val = float(self.prawobj.comment_karma) * comm_mul
 
         # Third, determine base fiat value from config
@@ -286,7 +347,9 @@ class CtbUser(object):
         if type(base_val) in [str, unicode]:
             base_val = eval(base_val)
         if not type(base_val) == float:
-            raise Exception("CtbUser::get_redeem_amount(): type of base_val is not float")
+            raise Exception(
+                "CtbUser::get_redeem_amount(): type of base_val is not float"
+            )
 
         # Sum link_val, comm_val, and base_val to get total fiat
         total_fiat = link_val + comm_val + base_val
@@ -309,15 +372,26 @@ def delete_user(_username=None, _db=None):
     lg.debug("> delete_user(%s)", _username)
 
     try:
-        sql_arr = ["DELETE FROM t_users WHERE username = %s",
-                   "DELETE FROM t_addrs WHERE username = %s"]
+        sql_arr = [
+            "DELETE FROM t_users WHERE username = %s",
+            "DELETE FROM t_addrs WHERE username = %s",
+        ]
         for sql in sql_arr:
             mysqlexec = _db.execute(sql, _username.lower())
             if mysqlexec.rowcount <= 0:
-                lg.warning("delete_user(%s): rowcount <= 0 while executing <%s>", _username, sql % _username.lower())
+                lg.warning(
+                    "delete_user(%s): rowcount <= 0 while executing <%s>",
+                    _username,
+                    sql % _username.lower(),
+                )
 
-    except Exception, e:
-        lg.error("delete_user(%s): error while executing <%s>: %s", _username, sql % _username.lower(), e)
+    except Exception as e:
+        lg.error(
+            "delete_user(%s): error while executing <%s>: %s",
+            _username,
+            sql % _username.lower(),
+            e,
+        )
         return False
 
     lg.debug("< delete_user(%s) DONE", _username)

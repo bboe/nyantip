@@ -15,15 +15,14 @@
     along with ALTcointip.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import ctb_user
-
-import logging, time
-
-from requests.exceptions import HTTPError, ConnectionError, Timeout
-from praw.errors import ExceptionList, APIException, InvalidCaptcha, InvalidUser, RateLimitExceeded
+import logging
+import time
 from socket import timeout
 
-lg = logging.getLogger('cointipbot')
+from praw.errors import RateLimitExceeded
+from requests.exceptions import ConnectionError, HTTPError, Timeout
+
+lg = logging.getLogger("cointipbot")
 
 
 def praw_call(prawFunc, *extraArgs, **extraKwArgs):
@@ -47,17 +46,16 @@ def praw_call(prawFunc, *extraArgs, **extraKwArgs):
                 return False
             lg.warning("praw_call(): Reddit is down (%s), sleeping...", e)
             time.sleep(30)
-            pass
-        except Exception as e:
-            raise
 
     return True
+
 
 def permalink(message):
     """
     Return permalink if possible for message.
     """
-    return getattr(message, '_fast_permalink', None)
+    return getattr(message, "_fast_permalink", None)
+
 
 def reddit_get_parent_author(comment, reddit, ctb):
     """
@@ -69,28 +67,37 @@ def reddit_get_parent_author(comment, reddit, ctb):
 
         try:
             parentcomment = reddit.get_info(thing_id=comment.parent_id)
-            if (hasattr(parentcomment, 'author') and parentcomment.author):
-                lg.debug("< reddit_get_parent_author(%s) -> %s", comment.id, parentcomment.author.name)
+            if hasattr(parentcomment, "author") and parentcomment.author:
+                lg.debug(
+                    "< reddit_get_parent_author(%s) -> %s",
+                    comment.id,
+                    parentcomment.author.name,
+                )
                 return parentcomment.author.name
             else:
-                lg.warning("reddit_get_parent_author(%s): parent comment was deleted", comment.id)
+                lg.warning(
+                    "reddit_get_parent_author(%s): parent comment was deleted",
+                    comment.id,
+                )
                 return None
 
         except IndexError as e:
             lg.warning("reddit_get_parent_author(): couldn't get author: %s", e)
             return None
         except (RateLimitExceeded, timeout) as e:
-            lg.warning("reddit_get_parent_author(): Reddit is down (%s), sleeping...", e)
+            lg.warning(
+                "reddit_get_parent_author(): Reddit is down (%s), sleeping...", e
+            )
             time.sleep(ctb.conf.misc.times.sleep_seconds)
-            pass
         except HTTPError as e:
-        	lg.warning("reddit_get_parent_author(): thread or comment not found (%s)", e)
-        	return None
-        except Exception as e:
-            raise
+            lg.warning(
+                "reddit_get_parent_author(): thread or comment not found (%s)", e
+            )
+            return None
 
     lg.error("reddit_get_parent_author(): returning None (should not get here)")
     return None
+
 
 def get_value(conn, param0=None):
     """
@@ -110,14 +117,15 @@ def get_value(conn, param0=None):
         if mysqlrow is None:
             lg.error("get_value(): query <%s> didn't return any rows", sql % (param0))
             return None
-        value = mysqlrow['value0']
+        value = mysqlrow["value0"]
 
-    except Exception, e:
-       lg.error("get_value(): error executing query <%s>: %s", sql % (param0), e)
-       raise
+    except Exception as e:
+        lg.error("get_value(): error executing query <%s>: %s", sql % (param0), e)
+        raise
 
     lg.debug("< get_value() DONE (%s)", value)
     return value
+
 
 def set_value(conn, param0=None, value0=None):
     """
@@ -133,15 +141,18 @@ def set_value(conn, param0=None, value0=None):
 
         mysqlexec = conn.execute(sql, (param0, value0))
         if mysqlexec.rowcount <= 0:
-            lg.error("set_value(): query <%s> didn't affect any rows", sql % (param0, value0))
+            lg.error(
+                "set_value(): query <%s> didn't affect any rows", sql % (param0, value0)
+            )
             return False
 
-    except Exception, e:
+    except Exception as e:
         lg.error("set_value: error executing query <%s>: %s", sql % (param0, value0), e)
         raise
 
     lg.debug("< set_value() DONE")
     return True
+
 
 def add_coin(coin, db, coins):
     """
@@ -157,29 +168,36 @@ def add_coin(coin, db, coins):
         mysqlsel = db.execute(sql_select, (coin))
         for m in mysqlsel:
             # Generate new coin address for user
-            new_addr = coins[coin].getnewaddr(_user=m['username'])
-            lg.info("add_coin(): got new address %s for %s", new_addr, m['username'])
+            new_addr = coins[coin].getnewaddr(_user=m["username"])
+            lg.info("add_coin(): got new address %s for %s", new_addr, m["username"])
             # Add new coin address to MySQL
-            mysqlins = db.execute(sql_insert, (m['username'].lower(), coin, new_addr))
+            mysqlins = db.execute(sql_insert, (m["username"].lower(), coin, new_addr))
             if mysqlins.rowcount <= 0:
-                raise Exception("add_coin(%s): rowcount <= 0 when executing <%s>", coin, sql_insert % (m['username'].lower(), coin, new_addr))
+                raise Exception(
+                    "add_coin(%s): rowcount <= 0 when executing <%s>",
+                    coin,
+                    sql_insert % (m["username"].lower(), coin, new_addr),
+                )
             time.sleep(1)
 
-    except Exception, e:
+    except Exception as e:
         lg.error("add_coin(%s): error: %s", coin, e)
         raise
 
     lg.debug("< add_coin(%s) DONE", coin)
     return True
 
+
 class DotDict(object):
     def __init__(self, d):
         for a, b in d.items():
             if isinstance(b, (list, tuple)):
-               setattr(self, a, [DotDict(x) if isinstance(x, dict) else x for x in b])
+                setattr(self, a, [DotDict(x) if isinstance(x, dict) else x for x in b])
             else:
-               setattr(self, a, DotDict(b) if isinstance(b, dict) else b)
+                setattr(self, a, DotDict(b) if isinstance(b, dict) else b)
+
     def __getitem__(self, val):
         return getattr(self, val)
+
     def has_key(self, key):
         return hasattr(self, key)
