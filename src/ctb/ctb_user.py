@@ -91,21 +91,14 @@ class CtbUser(object):
         )
         return me
 
-    def get_balance(self, coin=None, kind=None):
-        """
-        If coin is specified, return float with coin balance for user. Else, return a dict with balance of each coin for user.
-        """
+    def get_balance(self, *, kind=None):
         logger.debug("balance(%s)", self.name)
 
-        if not bool(coin) or not bool(kind):
-            raise Exception("balance(%s): coin or kind not set" % self.name)
-
         # Ask coin daemon for account balance
-        logger.info("balance(%s): getting %s %s balance", self.name, coin, kind)
-        balance = self.ctb.coins[coin].getbalance(
-            _user=self.name, _minconf=self.ctb.conf["coins"][coin]["minconf"][kind]
+        logger.info("balance(%s): getting %s balance", self.name, kind)
+        balance = self.ctb.coin.getbalance(
+            _user=self.name, _minconf=self.ctb.conf["coin"]["minconf"][kind]
         )
-
         logger.debug("balance(%s) DONE", self.name)
         return float(balance)
 
@@ -185,7 +178,7 @@ class CtbUser(object):
                     sql_coins, (self.name.lower())
                 ).fetchone()
 
-                if int(mysqlrow_coins["count"]) != len(self.ctb.coins):
+                if int(mysqlrow_coins["count"]) != 1:
                     if int(mysqlrow_coins["count"]) == 0:
                         # Bot probably crashed during user registration process
                         # Delete user
@@ -300,59 +293,6 @@ class CtbUser(object):
 
         logger.debug("register(%s) DONE", self.name)
         return True
-
-    def get_redeem_amount(self, coin=None, fiat=None):
-        """
-        Return karma redeem amount for a given coin
-        """
-        logger.debug("get_redeem_amount(%s)", coin)
-
-        if not coin or coin not in self.ctb.coins:
-            raise Exception("get_redeem_amount(%s): invalid coin" % coin)
-        if not fiat or fiat not in self.ctb.conf.fiat:
-            raise Exception("get_redeem_amount(%s): invalid fiat" % fiat)
-
-        # Check if we have coin's fiat value
-        coin_value = self.ctb.coin_value(coin, fiat)
-        if not coin_value or not coin_value > 0.0:
-            logger.warning("get_redeem_amount(%s): coin_value not available", coin)
-            return (None, None)
-
-        # First, determine fiat value due to link karma
-        link_mul = self.ctb.conf["reddit"].redeem.multiplier.link
-        if type(link_mul) in [str, unicode]:
-            link_mul = eval(link_mul)
-        if not type(link_mul) == float:
-            raise Exception("get_redeem_amount(): type of link_mul is not float")
-        link_val = float(self.prawobj.link_karma) * link_mul
-
-        # Second, determine fiat value due to comment karma
-        comm_mul = self.ctb.conf["reddit"].redeem.multiplier.comment
-        if type(comm_mul) in [str, unicode]:
-            comm_mul = eval(comm_mul)
-        if not type(comm_mul) == float:
-            raise Exception("get_redeem_amount(): type of comm_mul is not float")
-        comm_val = float(self.prawobj.comment_karma) * comm_mul
-
-        # Third, determine base fiat value from config
-        base_val = self.ctb.conf["reddit"].redeem.base
-        if type(base_val) in [str, unicode]:
-            base_val = eval(base_val)
-        if not type(base_val) == float:
-            raise Exception("get_redeem_amount(): type of base_val is not float")
-
-        # Sum link_val, comm_val, and base_val to get total fiat
-        total_fiat = link_val + comm_val + base_val
-
-        # Check if above maximum
-        if total_fiat > self.ctb.conf["reddit"].redeem.maximum:
-            total_fiat = self.ctb.conf["reddit"].redeem.maximum
-
-        # Determine total coin value using exchange rate
-        total_coin = total_fiat / coin_value
-
-        logger.debug("get_redeem_amount(%s) DONE", coin)
-        return (total_coin, total_fiat)
 
 
 def delete_user(_username=None, _db=None):

@@ -31,7 +31,7 @@ from jinja2 import Environment, PackageLoader
 from praw.errors import RateLimitExceeded
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 
-from ctb import ctb_action, ctb_coin, ctb_db, ctb_exchange, ctb_misc, ctb_user
+from ctb import ctb_action, ctb_coin, ctb_db, ctb_misc, ctb_user
 
 # Configure CointipBot logger
 logging.basicConfig(
@@ -57,10 +57,8 @@ class CointipBot(object):
         conf = {}
         try:
             for name in [
-                "coins",
+                "coin",
                 "db",
-                "exchanges",
-                "fiat",
                 "keywords",
                 "misc",
                 "reddit",
@@ -147,38 +145,34 @@ class CointipBot(object):
             b.register()
 
         # Ensure (total pending tips) < (CointipBot's balance)
-        for c in self.coins:
-            ctb_balance = b.get_balance(coin=c, kind="givetip")
-            pending_tips = float(0)
-            actions = ctb_action.get_actions(
-                atype="givetip", state="pending", coin=c, ctb=self
+        ctb_balance = user.get_balance(kind="givetip")
+        pending_tips = float(0)
+        actions = ctb_action.get_actions(atype="givetip", state="pending", ctb=self)
+        for action in actions:
+            pending_tips += action.coinval
+        if (ctb_balance - pending_tips) < -0.000001:
+            raise Exception(
+                "self_checks(): CointipBot's balance (%s) < total pending tips (%s)"
+                % (ctb_balance, pending_tips)
             )
-            for a in actions:
-                pending_tips += a.coinval
-            if (ctb_balance - pending_tips) < -0.000001:
-                raise Exception(
-                    "self_checks(): CointipBot's %s balance (%s) < total pending tips (%s)"
-                    % (c.upper(), ctb_balance, pending_tips)
-                )
 
-        # Ensure coin balances are positive
-        for c in self.coins:
-            b = float(self.coins[c].conn.getbalance())
-            if b < 0:
-                raise Exception("self_checks(): negative balance of %s: %s" % (c, b))
+        # Ensure coin balance is positive
+        balance = float(self.coin.conn.getbalance())
+        if balance < 0:
+            raise Exception(f"self_checks(): negative balance: {balance}")
 
         # Ensure user accounts are intact and balances are not negative
         sql = "SELECT username FROM t_users ORDER BY username"
         for mysqlrow in self.db.execute(sql):
-            u = ctb_user.CtbUser(name=mysqlrow["username"], ctb=self)
-            if not u.is_registered():
+            user = ctb_user.CtbUser(name=mysqlrow["username"], ctb=self)
+            if not user.is_registered():
                 raise Exception(
-                    "self_checks(): user %s is_registered() failed"
-                    % mysqlrow["username"]
+                    f"self_checks(): user {mysqlrow['username']} is_registered() failed"
                 )
-        #    for c in vars(self.coins):
-        #        if u.get_balance(coin=c, kind='givetip') < 0:
-        #            raise Exception("self_checks(): user %s %s balance is negative" % (mysqlrow['username'], c))
+            if user.get_balance(kind="givetip") < 0:
+                raise Exception(
+                    f"self_checks(): user {mysqlrow['username']} balance is negative"
+                )
 
         return True
 
@@ -331,98 +325,6 @@ class CointipBot(object):
         logger.debug("check_inbox() DONE")
         return True
 
-    def refresh_ev(self):
-        """
-        Refresh coin/fiat exchange values using self.exchanges
-        """
-
-        # Return if rate has been checked in the past hour
-        seconds = int(1 * 3600)
-        if hasattr(self.conf["exchanges"], "last_refresh") and self.conf[
-            "exchanges"
-        ].last_refresh + seconds > int(time.mktime(time.gmtime())):
-            logger.debug("refresh_ev(): DONE (skipping)")
-            return
-
-        # For each enabled coin...
-        for coin, coin_conf in self.conf["coins"].items():
-            if coin_conf["enabled"]:
-
-                # Get BTC/coin exchange rate
-                values = []
-                result = 0.0
-
-                if not coin_conf["unit"] == "btc":
-                    # For each exchange that supports this coin...
-                    for exchange in self.exchanges:
-                        if self.exchanges[exchange].supports_pair(
-                            _name1=coin_conf["unit"], _name2="btc"
-                        ):
-                            # Get ticker value from exchange
-                            value = self.exchanges[exchange].get_ticker_value(
-                                _name1=coin_conf["unit"], _name2="btc"
-                            )
-                            if value and float(value) > 0.0:
-                                values.append(float(value))
-
-                    # Result is average of all responses
-                    if len(values) > 0:
-                        result = sum(values) / float(len(values))
-
-                else:
-                    # BTC/BTC rate is always 1
-                    result = 1.0
-
-                # Assign result to self.runtime['ev']
-                if coin not in self.runtime["ev"]:
-                    self.runtime["ev"][coin] = {}
-                self.runtime["ev"][coin]["btc"] = result
-
-        # For each enabled fiat...
-        for fiat, fiat_conf in self.conf["fiat"].items():
-            if fiat_conf["enabled"]:
-
-                # Get fiat/BTC exchange rate
-                values = []
-                result = 0.0
-
-                # For each exchange that supports this fiat...
-                for exchange in self.exchanges:
-                    if self.exchanges[exchange].supports_pair(
-                        _name1="btc", _name2=fiat_conf["unit"]
-                    ):
-                        # Get ticker value from exchange
-                        value = self.exchanges[exchange].get_ticker_value(
-                            _name1="btc", _name2=fiat_conf["unit"]
-                        )
-                        if value and float(value) > 0.0:
-                            values.append(float(value))
-
-                # Result is average of all responses
-                if len(values) > 0:
-                    result = sum(values) / float(len(values))
-
-                # Assign result to self.runtime['ev']
-                if "btc" not in self.runtime["ev"]:
-                    self.runtime["ev"]["btc"] = {}
-                self.runtime["ev"]["btc"][fiat] = result
-
-        logger.debug("refresh_ev(): %s", self.runtime["ev"])
-
-        # Update last_refresh
-        self.conf["exchanges"]["last_refresh"] = int(time.mktime(time.gmtime()))
-
-    def coin_value(self, _coin, _fiat):
-        """
-        Quick method to return _fiat value of _coin
-        """
-        try:
-            value = self.runtime["ev"][_coin]["btc"] * self.runtime["ev"]["btc"][_fiat]
-        except KeyError:
-            logger.warning("coin_value(%s, %s): KeyError", _coin, _fiat)
-            value = 0.0
-        return value
-
     def notify(self, _msg=None):
         """
         Send _msg to configured destination
@@ -462,9 +364,8 @@ class CointipBot(object):
         """
         logger.info("__init__()...")
 
-        self.coins = {}
-        self.exchanges = {}
-        self.runtime = {"ev": {}, "regex": []}
+        self.coin = None
+        self.runtime = {"regex": []}
 
         # Configuration
         self.conf = self.parse_config()
@@ -479,25 +380,8 @@ class CointipBot(object):
             self.db = self.connect_db()
 
         # Coins
-        if init_coins and self.conf["coins"]:
-            for coin, coin_conf in self.conf["coins"].items():
-                if coin_conf["enabled"]:
-                    self.coins[coin] = ctb_coin.CtbCoin(_conf=coin_conf)
-            if not len(self.coins) > 0:
-                logger.error(
-                    "__init__(): Error: please enable at least one type of coin"
-                )
-                sys.exit(1)
-
-        # Exchanges
-        if init_exchanges and self.conf["exchanges"]:
-            for exchange, exchange_conf in self.conf["exchanges"].items():
-                if exchange_conf["enabled"]:
-                    self.exchanges[exchange] = ctb_exchange.CtbExchange(
-                        _conf=exchange_conf
-                    )
-            if not len(self.exchanges) > 0:
-                logger.warning("__init__(): Warning: no exchanges are enabled")
+        if init_coin:
+            self.coin = ctb_coin.CtbCoin(_conf=self.conf["coin"])
 
         # Reddit
         if init_reddit:
@@ -519,13 +403,10 @@ class CointipBot(object):
         """
         Return string representation of self
         """
-        me = "<CointipBot: sleepsec=%s, batchlim=%s, ev=%s"
-        me = me % (
+        return "<CointipBot: sleepsec={}, batchlim={}".format(
             self.conf["misc"]["times"]["sleep_seconds"],
             self.conf["reddit"]["scan"]["batch_limit"],
-            self.runtime["ev"],
         )
-        return me
 
     def main(self):
         """
@@ -535,9 +416,6 @@ class CointipBot(object):
         while True:
             try:
                 logger.debug("main(): beginning main() iteration")
-
-                # Refresh exchange rate values
-                self.refresh_ev()
 
                 # Expire pending tips first. fuck waiting for this shit.
                 self.expire_pending_tips()

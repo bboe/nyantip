@@ -351,8 +351,6 @@ def format_value(m, k, username, ctb, compact=False):
         if compact:
             if m[k] == "withdraw":
                 return "w"
-            if m[k] == "redeem":
-                return "r"
 
     # Format subreddit
     elif k.find("subreddit") > -1:
