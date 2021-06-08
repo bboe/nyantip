@@ -109,22 +109,8 @@ Here's the first few lines of DEBUG-level console output during successful initi
     
 ALTcointip bot is configured by default to append INFO-level log messages to `logs/info.log`, and WARNING-level log messages to `logs/warning.log`, while DEBUG-level log messages are output to the console.
 
-### Cron: Backups
-
-Backups are very important! The last thing you want is losing user wallets or records of transactions in the database. 
-
-There are three simple backup scripts included that support backing up the database, wallets, and configuration files to local directory and (optionally) to a remote host with `rsync`. Make sure to schedule regular backups with cron and test whether they are actually performed. Example cron configuration:
-
-    0 8,20 * * * cd /opt/altcointip/altcointip/src && python _backup_db.py ~/backups
-    0 9,21 * * * cd /opt/altcointip/altcointip/src && python _backup_wallets.py ~/backups
-    0 10 * * * cd /opt/altcointip/altcointip/src && python _backup_config.py ~/backups
-
 ### Cron: Statistics
 
 ALTcointip bot can be configured to generate tipping statistics pages (overall and per-user) and publish them using subreddit's wiki. After you configure and enable statistics in configuration, add the following cron job to update the main statistics page periodically:
 
     0 */3 * * * cd /opt/altcointip/altcointip/src && python _update_stats.py
-    
-### What If I Want To Enable More Cryptocoins Later?
-
-If you want to add a new cryptocoin after you already have a few registered users, you need to retroactively create the new cryptocoin address for users who have already registered. See [src/_add_coin.py](src/_add_coin.py) for details.

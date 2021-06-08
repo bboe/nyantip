@@ -27,7 +27,6 @@ banned_users:
 
 stats:
     enabled: false
-    userflair: false
     subreddit: 'mysubreddit'
     page: 'stats'
     url: 'http://www.reddit.com/r/mysubreddit/wiki/stats'
