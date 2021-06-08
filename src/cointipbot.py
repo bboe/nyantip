@@ -18,11 +18,9 @@
 
 import logging
 import os
-import smtplib
 import sys
 import time
 import traceback
-from email.mime.text import MIMEText
 from socket import timeout
 
 import praw
@@ -327,32 +325,6 @@ class CointipBot(object):
         logger.debug("check_inbox() DONE")
         return True
 
-    def notify(self, _msg=None):
-        """
-        Send _msg to configured destination
-        """
-
-        # Construct MIME message
-        msg = MIMEText(_msg)
-        msg["Subject"] = self.conf["misc"]["notify"]["subject"]
-        msg["From"] = self.conf["misc"]["notify"]["addr_from"]
-        msg["To"] = self.conf["misc"]["notify"]["addr_to"]
-
-        # Send MIME message
-        server = smtplib.SMTP(self.conf["misc"]["notify"]["smtp_host"])
-        if self.conf["misc"]["notify"]["smtp_tls"]:
-            server.starttls()
-        server.login(
-            self.conf["misc"]["notify"]["smtp_username"],
-            self.conf["misc"]["notify"]["smtp_password"],
-        )
-        server.sendmail(
-            self.conf["misc"]["notify"]["addr_from"],
-            self.conf["misc"]["notify"]["addr_to"],
-            msg.as_string(),
-        )
-        server.quit()
-
     def __init__(
         self,
         *,
@@ -436,7 +408,4 @@ class CointipBot(object):
                 logger.error("main(): exception: %s", e)
                 tb = traceback.format_exc()
                 logger.error("main(): traceback: %s", tb)
-                # Send a notification, if enabled
-                if self.conf["misc"]["notify"]["enabled"]:
-                    self.notify(_msg=tb)
                 sys.exit(1)
