@@ -101,7 +101,7 @@ class CtbAction(object):
                     "__init__(): determining coin value given '%s'",
                     self.keyword,
                 )
-                val = self.ctb.conf.keywords[self.keyword].value
+                val = self.ctb.conf["keywords"][self.keyword]["value"]
                 if type(val) == float:
                     self.coinval = val
                 elif type(val) == str:
@@ -239,7 +239,7 @@ class CtbAction(object):
         """
         logger.debug("do()")
 
-        if not self.ctb.conf["regex"]["actions"][self.type].enabled:
+        if not self.ctb.conf["regex"]["actions"][self.type]["enabled"]:
             msg = self.ctb.jenv.get_template("command-disabled.tpl").render(
                 a=self, ctb=self.ctb
             )
@@ -290,8 +290,8 @@ class CtbAction(object):
 
         # Generate history array
         history = []
-        sql_history = self.ctb.conf.db.sql.userhistory.sql
-        limit = int(self.ctb.conf.db.sql.userhistory.limit)
+        sql_history = self.ctb.conf["db"]["sql"]["userhistory"]["sql"]
+        limit = int(self.ctb.conf["db"]["sql"]["userhistory"]["limit"])
 
         mysqlexec = self.ctb.db.execute(
             sql_history, (self.u_from.name.lower(), self.u_from.name.lower(), limit)
@@ -368,11 +368,11 @@ class CtbAction(object):
                     "decline(): moving %s %s from %s to %s",
                     a.coinval,
                     a.coin.upper(),
-                    self.ctb.conf.reddit.auth.user,
+                    self.ctb.conf["reddit"]["auth"]["user"],
                     a.u_from.name,
                 )
                 if not self.ctb.coins[a.coin].sendtouser(
-                    _userfrom=self.ctb.conf.reddit.auth.user,
+                    _userfrom=self.ctb.conf["reddit"]["auth"]["user"],
                     _userto=a.u_from.name,
                     _amount=a.coinval,
                 ):
@@ -393,7 +393,7 @@ class CtbAction(object):
                     source_link=ctb_misc.permalink(a.msg),
                 )
                 logger.debug("decline(): " + msg)
-                if self.ctb.conf.reddit.messages.declined:
+                if self.ctb.conf["reddit"]["messages"]["declined"]:
                     if not ctb_misc.praw_call(a.msg.reply, msg):
                         a.u_from.tell(subj="+tip declined", msg=msg)
                 else:
@@ -430,11 +430,11 @@ class CtbAction(object):
             "expire(): moving %s %s from %s to %s",
             self.coinval,
             self.coin.upper(),
-            self.ctb.conf.reddit.auth.user,
+            self.ctb.conf["reddit"]["auth"]["user"],
             self.u_from.name,
         )
         if not self.coin.sendtouser(
-            _userfrom=self.ctb.conf.reddit.auth.user,
+            _userfrom=self.ctb.conf["reddit"]["auth"]["user"],
             _userto=self.u_from.name,
             _amount=self.coinval,
         ):
@@ -455,7 +455,7 @@ class CtbAction(object):
             source_link=ctb_misc.permalink(self.msg),
         )
         logger.debug("expire(): " + msg)
-        if self.ctb.conf.reddit.messages.expired:
+        if self.ctb.conf["reddit"]["messages"]["expired"]:
             if not ctb_misc.praw_call(self.msg.reply, msg):
                 self.u_from.tell(subj="+tip expired", msg=msg)
         else:
@@ -586,18 +586,18 @@ class CtbAction(object):
                 # - notify u_to to accept tip
 
                 # Move coins into pending account
-                minconf = self.coin.conf.minconf.givetip
+                minconf = self.coin.conf["minconf"]["givetip"]
                 logger.info(
                     "validate(): moving %s %s from %s to %s (minconf=%s)...",
                     self.coinval,
                     self.coin.upper(),
                     self.u_from.name,
-                    self.ctb.conf.reddit.auth.user,
+                    self.ctb.conf["reddit"]["auth"]["user"],
                     minconf,
                 )
                 if not self.coin.sendtouser(
                     _userfrom=self.u_from.name,
-                    _userto=self.ctb.conf.reddit.auth.user,
+                    _userto=self.ctb.conf["reddit"]["auth"]["user"],
                     _amount=self.coinval,
                     _minconf=minconf,
                 ):
@@ -679,11 +679,11 @@ class CtbAction(object):
                 logger.info(
                     "givetip(): moving %f from %s to %s...",
                     self.coinval,
-                    self.ctb.conf.reddit.auth.user,
+                    self.ctb.conf["reddit"]["auth"]["user"],
                     self.u_to.name,
                 )
                 res = self.coin.sendtouser(
-                    _userfrom=self.ctb.conf.reddit.auth.user,
+                    _userfrom=self.ctb.conf["reddit"]["auth"]["user"],
                     _userto=self.u_to.name,
                     _amount=self.coinval,
                 )
@@ -836,7 +836,7 @@ class CtbAction(object):
             address=mysqlrow["address"],
             balance=balance,
             coin=self.coin,
-            misc_conf=self.ctb.conf.misc,
+            misc_conf=self.ctb.conf["misc"],
         )
         ctb_misc.praw_call(self.msg.reply, msg)
 
@@ -961,31 +961,33 @@ def eval_message(msg, ctb):
 
             # Extract matched fields into variables
             to_addr = (
-                match.group(regex_info.rg_address)
-                if regex_info.rg_address > 0
+                match.group(regex_info["rg_address"])
+                if regex_info["rg_address"] > 0
                 else None
             )
             amount = (
-                match.group(regex_info.rg_amount) if regex_info.rg_amount > 0 else None
+                match.group(regex_info["rg_amount"])
+                if regex_info["rg_amount"] > 0
+                else None
             )
             keyword = (
-                match.group(regex_info.rg_keyword)
-                if regex_info.rg_keyword > 0
+                match.group(regex_info["rg_keyword"])
+                if regex_info["rg_keyword"] > 0
                 else None
             )
 
-            if not to_addr and regex_info.action == "givetip":
+            if not to_addr and regex_info["action"] == "givetip":
                 logger.debug("eval_message(): can't tip with no to_addr")
                 return None
 
             # Return CtbAction instance with given variables
             return CtbAction(
-                atype=regex_info.action,
+                atype=regex_info["action"],
                 msg=msg,
                 from_user=msg.author,
                 to_user=None,
                 to_addr=to_addr,
-                coin=regex_info.coin,
+                coin=regex_info["coin"],
                 coin_val=amount,
                 keyword=keyword,
                 ctb=ctb,

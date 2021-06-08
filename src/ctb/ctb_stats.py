@@ -178,7 +178,7 @@ def update_user_stats(ctb=None, username=None):
         if total_tipped_coin["total_coin"] is not None:
             user_stats += "**%s**|%s %.6f\n" % (
                 c,
-                ctb.conf.coins[c].symbol,
+                ctb.conf["coins"][c]["symbol"],
                 total_tipped_coin["total_coin"],
             )
     user_stats += "\n"
@@ -194,7 +194,7 @@ def update_user_stats(ctb=None, username=None):
         if total_received_coin["total_coin"] is not None:
             user_stats += "**%s**|%s %.6f\n" % (
                 c,
-                ctb.conf.coins[c].symbol,
+                ctb.conf["coins"][c]["symbol"],
                 total_received_coin["total_coin"],
             )
     user_stats += "\n"
@@ -247,7 +247,7 @@ def format_value(m, k, username, ctb, compact=False):
 
     # Format cryptocoin
     if type(m[k]) == float and k.find("coin") > -1:
-        coin_symbol = ctb.conf.coins[m["coin"]].symbol
+        coin_symbol = ctb.conf["coins"][m["coin"]]["symbol"]
         return "%s&nbsp;%.5g" % (coin_symbol, m[k])
 
     # Format username
@@ -274,7 +274,7 @@ def format_value(m, k, username, ctb, compact=False):
         displayaddr = m[k][:6] + "..." + m[k][-5:]
         return "[%s](%s%s)" % (
             displayaddr,
-            ctb.conf.coins[m["coin"]].explorer.address,
+            ctb.conf["coins"][m["coin"]]["explorer"]["address"],
             m[k],
         )
 

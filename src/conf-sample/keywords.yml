@@ -1,29 +1,29 @@
 all:
-    value: "float( self.u_from.get_balance(coin=self.coin, kind=('withdraw' if bool(self.addr_to) else 'givetip')) - (self.ctb.conf.coins[self.coin].txfee if bool(self.addr_to) else 0.0) ) if self.u_from.is_registered() and bool(self.coin) else None"
+    value: "float( self.u_from.get_balance(coin=self.coin, kind=('withdraw' if bool(self.addr_to) else 'givetip')) - (self.ctb.conf['coins'][self.coin]['txfee'] if bool(self.addr_to) else 0.0) ) if self.u_from.is_registered() and bool(self.coin) else None"
     message: '^**(*・_・)ノ⌒*** {USER_FROM} ^gives {USER_TO} ^_everything_!.. ^all {AMOUNT} ^now ^belong ^to {USER_TO}'
 
 flip:
-    value: "float( (self.ctb.conf.coins[self.coin].txmin.givetip if bool(self.coin) else 0.01) * float(randint(1,2)) )"
+    value: "float( (self.ctb.conf['coins'][self.coin]['txmin']['givetip'] if bool(self.coin) else 0.01) * float(randint(1,2)) )"
     message: '{USER_FROM} ^flips ^the ^table ^**(╯°□°）╯︵┻━┻** ^and {USER_TO} ^wins {AMOUNT}'
 
 megaflip:
-    value: "float( (self.ctb.conf.coins[self.coin].txmin.givetip if bool(self.coin) else 0.01) * float(randint(1,20)) )"
+    value: "float( (self.ctb.conf['coins'][self.coin]['txmin']['givetip'] if bool(self.coin) else 0.01) * float(randint(1,20)) )"
     message: '{USER_FROM} ^flips ^10 ^tables ^**(╯°□°）╯︵┻━┻** ^and {USER_TO} ^wins {AMOUNT}'
 
 gigaflip:
-    value: "float( (self.ctb.conf.coins[self.coin].txmin.givetip if bool(self.coin) else 0.01) * float(randint(1,200)) )"
+    value: "float( (self.ctb.conf['coins'][self.coin]['txmin']['givetip'] if bool(self.coin) else 0.01) * float(randint(1,200)) )"
     message: '{USER_FROM} ^flips ^100 ^tables ^**(╯°□°）╯︵┻━┻** ^and {USER_TO} ^wins {AMOUNT}'
 
 roll:
-    value: "float( (self.ctb.conf.coins[self.coin].txmin.givetip if bool(self.coin) else 0.01) * float(randint(1,6)) )"
+    value: "float( (self.ctb.conf['coins'][self.coin]['txmin']['givetip'] if bool(self.coin) else 0.01) * float(randint(1,6)) )"
     message: '{USER_FROM} ^rolls ^around ^and {USER_TO} ^gets {AMOUNT}'
 
 megaroll:
-    value: "float( (self.ctb.conf.coins[self.coin].txmin.givetip if bool(self.coin) else 0.01) * float(randint(1,60)) )"
+    value: "float( (self.ctb.conf['coins'][self.coin]['txmin']['givetip'] if bool(self.coin) else 0.01) * float(randint(1,60)) )"
     message: '{USER_FROM} ^rolls ^around ^and {USER_TO} ^gets {AMOUNT}'
 
 gigaroll:
-    value: "float( (self.ctb.conf.coins[self.coin].txmin.givetip if bool(self.coin) else 0.01) * float(randint(1,600)) )"
+    value: "float( (self.ctb.conf['coins'][self.coin]['txmin']['givetip'] if bool(self.coin) else 0.01) * float(randint(1,600)) )"
     message: '{USER_FROM} ^rolls ^aroun ^and {USER_TO} ^gets {AMOUNT}'
 
 random01:
@@ -91,7 +91,7 @@ fart:
     message: '{USER_FROM} ^farts ^on {USER_TO} ^**(⊙﹏⊙)** ^- ^worth {AMOUNT}'
 
 nothing:
-    value: "float (self.ctb.conf.coins[self.coin].txmin.givetip if bool(self.coin) else 0.01)"
+    value: "float (self.ctb.conf['coins'][self.coin]['txmin']['givetip'] if bool(self.coin) else 0.01)"
     message: '^**(″･ิ_･ิ)っ** {USER_FROM} ^gives ^almost ^nothing ^to {USER_TO} ^- {AMOUNT}'
 
 hug:

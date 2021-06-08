@@ -30,3 +30,4 @@ stats:
     subreddit: 'mysubreddit'
     page: 'stats'
     page_tips: 'tips'
+    url: 'https://www.reddit.com/r/mysubreddit/wiki/stats'

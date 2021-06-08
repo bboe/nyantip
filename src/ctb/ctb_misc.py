@@ -88,7 +88,7 @@ def reddit_get_parent_author(comment, reddit, ctb):
             logger.warning(
                 "reddit_get_parent_author(): Reddit is down (%s), sleeping...", e
             )
-            time.sleep(ctb.conf.misc.times.sleep_seconds)
+            time.sleep(ctb.conf["misc"]["times"]["sleep_seconds"])
         except HTTPError as e:
             logger.warning(
                 "reddit_get_parent_author(): thread or comment not found (%s)", e
