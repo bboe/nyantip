@@ -154,36 +154,11 @@ def update_user_stats(ctb=None, username=None):
     for c in coins_q:
         coins.append(c["coin"])
 
-    # List of fiat
-    fiat_q = ctb.db.execute(ctb.conf.db.sql.userstats.fiat)
-    fiat = []
-    for f in fiat_q:
-        fiat.append(f["fiat"])
-
     # Start building stats page
     user_stats = "### Tipping Summary for /u/%s\n\n" % username
     page = ctb.conf.reddit.stats.page + "_" + username
 
     # Total Tipped
-    user_stats += "#### Total Tipped (Fiat)\n\n"
-    user_stats += "fiat|total\n:---|---:\n"
-    total_tipped = []
-    for f in fiat:
-        mysqlexec = ctb.db.execute(
-            ctb.conf.db.sql.userstats.total_tipped_fiat, (username, f)
-        )
-        total_tipped_fiat = mysqlexec.fetchone()
-        if total_tipped_fiat["total_fiat"] is not None:
-            user_stats += "**%s**|%s %.2f\n" % (
-                f,
-                ctb.conf.fiat[f].symbol,
-                total_tipped_fiat["total_fiat"],
-            )
-            total_tipped.append(
-                "%s%.2f" % (ctb.conf.fiat[f].symbol, total_tipped_fiat["total_fiat"])
-            )
-    user_stats += "\n"
-
     user_stats += "#### Total Tipped (Coins)\n\n"
     user_stats += "coin|total\n:---|---:\n"
     for c in coins:
@@ -200,25 +175,6 @@ def update_user_stats(ctb=None, username=None):
     user_stats += "\n"
 
     # Total received
-    user_stats += "#### Total Received (Fiat)\n\n"
-    user_stats += "fiat|total\n:---|---:\n"
-    total_received = []
-    for f in fiat:
-        mysqlexec = ctb.db.execute(
-            ctb.conf.db.sql.userstats.total_received_fiat, (username, f)
-        )
-        total_received_fiat = mysqlexec.fetchone()
-        if total_received_fiat["total_fiat"] is not None:
-            user_stats += "**%s**|%s %.2f\n" % (
-                f,
-                ctb.conf.fiat[f].symbol,
-                total_received_fiat["total_fiat"],
-            )
-            total_received.append(
-                "%s%.2f" % (ctb.conf.fiat[f].symbol, total_received_fiat["total_fiat"])
-            )
-    user_stats += "\n"
-
     user_stats += "#### Total Received (Coins)\n\n"
     user_stats += "coin|total\n:---|---:\n"
     for c in coins:
@@ -266,27 +222,6 @@ def update_user_stats(ctb=None, username=None):
         user_stats,
         "Update by ALTcointip bot",
     )
-
-    # Update user flair on subreddit
-    if ctb.conf.reddit.stats.userflair and (
-        len(total_tipped) > 0 or len(total_received) > 0
-    ):
-        flair = ""
-        if len(total_tipped) > 0:
-            flair += "tipped[" + "|".join(total_tipped) + "]"
-            flair += " (%d)" % num_tipped
-        if len(total_received) > 0:
-            if len(total_tipped) > 0:
-                flair += " / "
-            flair += "received[" + "|".join(total_received) + "]"
-            flair += " (%d)" % num_received
-        logger.debug("update_user_stats(): updating flair for %s (%s)", username, flair)
-        r = ctb_misc.praw_call(
-            ctb.reddit.get_subreddit, ctb.conf.reddit.stats.subreddit
-        )
-        res = ctb_misc.praw_call(r.set_flair, username, flair, "")
-        logger.debug(res)
-
     return True
 
 
@@ -304,13 +239,8 @@ def format_value(m, k, username, ctb, compact=False):
         coin_symbol = ctb.conf.coins[m["coin"]].symbol
         return "%s&nbsp;%.5g" % (coin_symbol, m[k])
 
-    # Format fiat
-    elif type(m[k]) == float and (k.find("fiat") > -1 or k.find("usd") > -1):
-        fiat_symbol = ctb.conf.fiat[m["fiat"]].symbol
-        return "%s&nbsp;%.2f" % (fiat_symbol, m[k])
-
     # Format username
-    elif k.find("user") > -1 and type(m[k]) in [str, unicode]:
+    elif k.find("user") > -1 and isinstance(m[k], str):
         if compact:
             return (
                 ("**/u/%s**" % m[k])
@@ -340,7 +270,7 @@ def format_value(m, k, username, ctb, compact=False):
     # Format state
     elif k.find("state") > -1:
         if m[k] == "completed":
-            return unicode("✓", "utf8")
+            return "✓"
         else:
             return m[k]
 

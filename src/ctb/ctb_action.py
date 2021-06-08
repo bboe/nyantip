@@ -34,7 +34,7 @@ class CtbAction(object):
         atype,
         coin=None,
         coin_val=None,
-        ctp,
+        ctb,
         deleted_created_utc=None,
         deleted_msg_id=None,
         from_user=None,
@@ -95,56 +95,7 @@ class CtbAction(object):
 
         # Determine coinval if keyword is given instead of numeric value
         if self.type in ["givetip", "withdraw"]:
-            if self.keyword:
-                if not self.ctb.conf.keywords[self.keyword].for_coin and not self.fiat:
-                    # If fiat-only, set fiat to 'usd' if missing
-                    self.fiat = "usd"
-                if (
-                    not self.ctb.conf.keywords[self.keyword].for_coin
-                    and not self.fiatval
-                ):
-                    # If fiat-only, set fiatval as coinval, and clear coinval
-                    self.fiatval = self.coinval
-                    self.coinval = None
-                if not self.coin and not self.fiat:
-                    # If both coin and fiat missing, set fiat to 'usd'
-                    self.fiat = "usd"
-
-            if (
-                self.keyword
-                and self.fiat
-                and not self.coin
-                and not self.ctb.conf.keywords[self.keyword].for_fiat
-            ):
-                # If keyword is coin-only but only fiat is set, give up
-                return None
-
-            if self.keyword and self.fiat and not type(self.fiatval) in [float, int]:
-                # Determine fiat value
-                logger.debug(
-                    "__init__(): determining fiat value given '%s'",
-                    self.keyword,
-                )
-                val = self.ctb.conf.keywords[self.keyword].value
-                if type(val) == float:
-                    self.fiatval = val
-                elif type(val) == str:
-                    logger.debug("__init__(): evaluating '%s'", val)
-                    self.fiatval = eval(val)
-                    if not type(self.fiatval) == float:
-                        logger.warning(
-                            "__init__(atype=%s, from_user=%s): couldn't determine fiatval from keyword '%s' (not float)"
-                            % (self.type, self.u_from.name, self.keyword)
-                        )
-                        return None
-                else:
-                    logger.warning(
-                        "__init__(atype=%s, from_user=%s): couldn't determine fiatval from keyword '%s' (not float or str)"
-                        % (self.type, self.u_from.name, self.keyword)
-                    )
-                    return None
-
-            elif self.keyword and self.coin and not type(self.coinval) in [float, int]:
+            if self.keyword and self.coin and not type(self.coinval) in [float, int]:
                 # Determine coin value
                 logger.debug(
                     "__init__(): determining coin value given '%s'",
@@ -169,18 +120,15 @@ class CtbAction(object):
                     )
                     return None
 
-            # By this point we should have a proper coinval or fiatval
-            if not type(self.coinval) in [float, int] and not type(self.fiatval) in [
-                float,
-                int,
-            ]:
+            # By this point we should have a proper coinval
+            if not type(self.coinval) in [float, int]:
                 raise Exception(
-                    "__init__(atype=%s, from_user=%s): coinval or fiatval isn't determined"
+                    "__init__(atype=%s, from_user=%s): coinval isn't determined"
                     % (self.type, self.u_from.name)
                 )
 
         if self.type in ["givetip"] and not self.coin:
-            # Couldn't deteremine coin, abort
+            # Couldn't determine coin, abort
             logger.warning(
                 "__init__(): can't determine coin for user %s",
                 self.u_from.name,
@@ -888,7 +836,7 @@ class CtbAction(object):
             address=mysqlrow["address"],
             balance=balance,
             coin=self.coin,
-            misc_conf=ctb.conf.misc,
+            misc_conf=self.ctb.conf.misc,
         )
         ctb_misc.praw_call(self.msg.reply, msg)
 
@@ -1010,25 +958,33 @@ def eval_message(msg, ctb):
             logger.debug("eval_message(): match found")
 
             # Extract matched fields into variables
-            to_addr = m.group(r.rg_address) if r.rg_address > 0 else None
-            amount = m.group(r.rg_amount) if r.rg_amount > 0 else None
-            keyword = m.group(r.rg_keyword) if r.rg_keyword > 0 else None
+            to_addr = (
+                match.group(regex_info.rg_address)
+                if regex_info.rg_address > 0
+                else None
+            )
+            amount = (
+                match.group(regex_info.rg_amount) if regex_info.rg_amount > 0 else None
+            )
+            keyword = (
+                match.group(regex_info.rg_keyword)
+                if regex_info.rg_keyword > 0
+                else None
+            )
 
-            if (to_addr is None) and (r.action == "givetip"):
+            if not to_addr and regex_info.action == "givetip":
                 logger.debug("eval_message(): can't tip with no to_addr")
                 return None
 
             # Return CtbAction instance with given variables
             return CtbAction(
-                atype=r.action,
+                atype=regex_info.action,
                 msg=msg,
                 from_user=msg.author,
                 to_user=None,
                 to_addr=to_addr,
-                coin=r.coin,
-                coin_val=amount if not r.fiat else None,
-                fiat=r.fiat,
-                fiat_val=amount if r.fiat else None,
+                coin=regex_info.coin,
+                coin_val=amount,
                 keyword=keyword,
                 ctb=ctb,
             )
@@ -1082,8 +1038,8 @@ def eval_comment(comment, ctb):
 
             # Return CtbAction instance with given variables
             logger.debug(
-                "eval_comment(): creating action %s: to_user=%s, to_addr=%s, amount=%s, coin=%s, fiat=%s"
-                % (r.action, u_to, to_addr, amount, r.coin, r.fiat)
+                "eval_comment(): creating action %s: to_user=%s, to_addr=%s, amount=%s, coin=%s"
+                % (r.action, u_to, to_addr, amount, r.coin)
             )
             # logger.debug("eval_comment() DONE (yes)")
             return CtbAction(
@@ -1092,9 +1048,7 @@ def eval_comment(comment, ctb):
                 to_user=u_to,
                 to_addr=to_addr,
                 coin=r.coin,
-                coin_val=amount if not r.fiat else None,
-                fiat=r.fiat,
-                fiat_val=amount if r.fiat else None,
+                coin_val=amount,
                 keyword=keyword,
                 subr=comment.subreddit,
                 ctb=ctb,
@@ -1215,10 +1169,6 @@ def get_actions(
             sql_terms.append("subreddit = '%s'" % subr)
         sql += " AND ".join(sql_terms)
 
-    # throttle ALL THE THINGS!
-    #    if created_utc:
-    #        sql += ' LIMIT 100'
-
     while True:
         try:
             r = []
@@ -1230,8 +1180,6 @@ def get_actions(
                 return r
 
             for m in mysqlexec:
-                #                if m['msg_link'] is None: continue
-
                 logger.debug("get_actions(): found %s", m["msg_link"])
 
                 # Get PRAW message (msg) and author (msg.author) objects
@@ -1285,9 +1233,7 @@ def get_actions(
                         to_user=m["to_user"],
                         to_addr=m["to_addr"] if not m["to_user"] else None,
                         coin=m["coin"],
-                        fiat=m["fiat"],
                         coin_val=float(m["coin_val"]) if m["coin_val"] else None,
-                        fiat_val=float(m["fiat_val"]) if m["fiat_val"] else None,
                         subr=m["subreddit"],
                         ctb=ctb,
                     )
