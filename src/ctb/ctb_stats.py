@@ -34,30 +34,30 @@ def update_stats(ctb=None):
 
     stats = ""
 
-    if not ctb.conf.reddit.stats.enabled:
+    if not ctb.conf["reddit"]["stats"]["enabled"]:
         return None
 
-    for s in sorted(vars(ctb.conf.db.sql.globalstats)):
+    for s in sorted(ctb.conf["db"]["sql"]["globalstats"]):
         logger.debug("update_stats(): getting stats for '%s'" % s)
-        sql = ctb.conf.db.sql.globalstats[s].query
-        stats += "\n\n### %s\n\n" % ctb.conf.db.sql.globalstats[s].name
-        stats += "%s\n\n" % ctb.conf.db.sql.globalstats[s].desc
+        sql = ctb.conf["db"]["sql"]["globalstats"][s]["query"]
+        stats += "\n\n### %s\n\n" % ctb.conf["db"]["sql"]["globalstats"][s]["name"]
+        stats += "%s\n\n" % ctb.conf["db"]["sql"]["globalstats"][s]["desc"]
 
         mysqlexec = ctb.db.execute(sql)
         if mysqlexec.rowcount <= 0:
             logger.warning(
                 "update_stats(): query <%s> returned nothing"
-                % ctb.conf.db.sql.globalstats[s].query
+                % ctb.conf["db"]["sql"]["globalstats"][s]["query"]
             )
             continue
 
-        if ctb.conf.db.sql.globalstats[s].type == "line":
+        if ctb.conf["db"]["sql"]["globalstats"][s]["type"] == "line":
             m = mysqlexec.fetchone()
-            k = mysqlexec.keys()[0]
+            k = list(mysqlexec.keys())[0]
             value = format_value(m, k, "", ctb)
             stats += "%s = **%s**\n" % (k, value)
 
-        elif ctb.conf.db.sql.globalstats[s].type == "table":
+        elif ctb.conf["db"]["sql"]["globalstats"][s]["type"] == "table":
             stats += ("|".join(mysqlexec.keys())) + "\n"
             stats += ("|".join([":---"] * len(mysqlexec.keys()))) + "\n"
             for m in mysqlexec:
@@ -69,7 +69,7 @@ def update_stats(ctb=None):
         else:
             logger.error(
                 "update_stats(): don't know what to do with type '%s'"
-                % ctb.conf.db.sql.globalstats[s].type
+                % ctb.conf["db"]["sql"]["globalstats"][s]["type"]
             )
             return False
 
@@ -77,12 +77,15 @@ def update_stats(ctb=None):
 
     logger.debug(
         "update_stats(): updating subreddit '%s', page '%s'"
-        % (ctb.conf.reddit.stats.subreddit, ctb.conf.reddit.stats.page)
+        % (
+            ctb.conf["reddit"]["stats"]["subreddit"],
+            ctb.conf["reddit"]["stats"]["page"],
+        )
     )
     return ctb_misc.praw_call(
         ctb.reddit.edit_wiki_page,
-        ctb.conf.reddit.stats.subreddit,
-        ctb.conf.reddit.stats.page,
+        ctb.conf["reddit"]["stats"]["subreddit"],
+        ctb.conf["reddit"]["stats"]["page"],
         stats,
         "Update by ALTcointip bot",
     )
@@ -93,14 +96,17 @@ def update_tips(ctb=None):
     Update page listing all tips
     """
 
-    if not ctb.conf.reddit.stats.enabled:
+    if not ctb.conf["reddit"]["stats"]["enabled"]:
         return None
 
     # Start building stats page
     tip_list = "### All Completed Tips\n\n"
 
-    ctb.db.execute(ctb.conf.db.sql.tips.sql_set)
-    tips = ctb.db.execute(ctb.conf.db.sql.tips.sql_list, (ctb.conf.db.sql.tips.limit))
+    ctb.db.execute(ctb.conf["db"]["sql"]["tips"]["sql_set"])
+    tips = ctb.db.execute(
+        ctb.conf["db"]["sql"]["tips"]["sql_list"],
+        (ctb.conf["db"]["sql"]["tips"]["limit"]),
+    )
     tip_list += ("|".join(tips.keys())) + "\n"
     tip_list += ("|".join([":---"] * len(tips.keys()))) + "\n"
 
@@ -113,12 +119,15 @@ def update_tips(ctb=None):
 
     logger.debug(
         "update_tips(): updating subreddit '%s', page '%s'"
-        % (ctb.conf.reddit.stats.subreddit, ctb.conf.reddit.stats.page_tips)
+        % (
+            ctb.conf["reddit"]["stats"]["subreddit"],
+            ctb.conf["reddit"]["stats"]["page_tips"],
+        )
     )
     ctb_misc.praw_call(
         ctb.reddit.edit_wiki_page,
-        ctb.conf.reddit.stats.subreddit,
-        ctb.conf.reddit.stats.page_tips,
+        ctb.conf["reddit"]["stats"]["subreddit"],
+        ctb.conf["reddit"]["stats"]["page_tips"],
         tip_list,
         "Update by ALTcointip bot",
     )
@@ -131,11 +140,11 @@ def update_all_user_stats(ctb=None):
     Update individual user stats for all uers
     """
 
-    if not ctb.conf.reddit.stats.enabled:
+    if not ctb.conf["reddit"]["stats"]["enabled"]:
         logger.error("update_all_user_stats(): stats are not enabled in config.yml")
         return None
 
-    users = ctb.db.execute(ctb.conf.db.sql.userstats.users)
+    users = ctb.db.execute(ctb.conf["db"]["sql"]["userstats"]["users"])
     for u in users:
         update_user_stats(ctb=ctb, username=u["username"])
 
@@ -145,25 +154,25 @@ def update_user_stats(ctb=None, username=None):
     Update individual user stats for given username
     """
 
-    if not ctb.conf.reddit.stats.enabled:
+    if not ctb.conf["reddit"]["stats"]["enabled"]:
         return None
 
     # List of coins
-    coins_q = ctb.db.execute(ctb.conf.db.sql.userstats.coins)
+    coins_q = ctb.db.execute(ctb.conf["db"]["sql"]["userstats"]["coins"])
     coins = []
     for c in coins_q:
         coins.append(c["coin"])
 
     # Start building stats page
     user_stats = "### Tipping Summary for /u/%s\n\n" % username
-    page = ctb.conf.reddit.stats.page + "_" + username
+    page = ctb.conf["reddit"]["stats"]["page"] + "_" + username
 
     # Total Tipped
     user_stats += "#### Total Tipped (Coins)\n\n"
     user_stats += "coin|total\n:---|---:\n"
     for c in coins:
         mysqlexec = ctb.db.execute(
-            ctb.conf.db.sql.userstats.total_tipped_coin, (username, c)
+            ctb.conf["db"]["sql"]["userstats"]["total_tipped_coin"], (username, c)
         )
         total_tipped_coin = mysqlexec.fetchone()
         if total_tipped_coin["total_coin"] is not None:
@@ -179,7 +188,7 @@ def update_user_stats(ctb=None, username=None):
     user_stats += "coin|total\n:---|---:\n"
     for c in coins:
         mysqlexec = ctb.db.execute(
-            ctb.conf.db.sql.userstats.total_received_coin, (username, c)
+            ctb.conf["db"]["sql"]["userstats"]["total_received_coin"], (username, c)
         )
         total_received_coin = mysqlexec.fetchone()
         if total_received_coin["total_coin"] is not None:
@@ -192,7 +201,9 @@ def update_user_stats(ctb=None, username=None):
 
     # History
     user_stats += "#### History\n\n"
-    history = ctb.db.execute(ctb.conf.db.sql.userstats.history, (username, username))
+    history = ctb.db.execute(
+        ctb.conf["db"]["sql"]["userstats"]["history"], (username, username)
+    )
     user_stats += ("|".join(history.keys())) + "\n"
     user_stats += ("|".join([":---"] * len(history.keys()))) + "\n"
 
@@ -213,11 +224,11 @@ def update_user_stats(ctb=None, username=None):
     # Submit changes
     logger.debug(
         "update_user_stats(): updating subreddit '%s', page '%s'"
-        % (ctb.conf.reddit.stats.subreddit, page)
+        % (ctb.conf["reddit"]["stats"]["subreddit"], page)
     )
     ctb_misc.praw_call(
         ctb.reddit.edit_wiki_page,
-        ctb.conf.reddit.stats.subreddit,
+        ctb.conf["reddit"]["stats"]["subreddit"],
         page,
         user_stats,
         "Update by ALTcointip bot",
@@ -252,8 +263,8 @@ def format_value(m, k, username, ctb, compact=False):
             toreturn = "[%s](/u/%s)" % (un, re.escape(m[k]))
             if m[k].lower() != username.lower():
                 toreturn += "^[[stats]](/r/%s/wiki/%s_%s)" % (
-                    ctb.conf.reddit.stats.subreddit,
-                    ctb.conf.reddit.stats.page,
+                    ctb.conf["reddit"]["stats"]["subreddit"],
+                    ctb.conf["reddit"]["stats"]["page"],
                     m[k],
                 )
             return toreturn

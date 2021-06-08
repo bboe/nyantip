@@ -921,6 +921,8 @@ def init_regex(ctb):
                 }
 
                 if regex["rg_coin"] > 0:
+                    if not ctb.coin:
+                        continue
                     rval2 = rval1.replace(
                         "{REGEX_COIN}", ctb.coin.conf["regex"]["units"]
                     )
