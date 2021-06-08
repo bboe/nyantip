@@ -16,10 +16,9 @@ if not len(sys.argv) in [2, 3] or not os.access(sys.argv[1], os.W_OK):
 
 ctb = cointipbot.CointipBot(
     self_checks=False,
-    init_reddit=False,
-    init_coins=False,
+    init_coin=False,
     init_db=False,
-    init_logging=False,
+    init_reddit=False,
 )
 
 if not find_executable("zip"):

@@ -25,12 +25,10 @@ logger = logging.getLogger("ctb")
 logger.setLevel(logging.DEBUG)
 
 ctb = cointipbot.CointipBot(
-    self_checks=False,
-    init_reddit=True,
-    init_coins=False,
-    init_exchanges=False,
+    init_coin=False,
     init_db=True,
-    init_logging=False,
+    init_reddit=True,
+    self_checks=False,
 )
 
 # Update stats page

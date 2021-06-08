@@ -140,9 +140,11 @@ class CointipBot(object):
         """
 
         # Ensure bot is a registered user
-        b = ctb_user.CtbUser(name=self.conf["reddit"]["auth"]["user"].lower(), ctb=self)
-        if not b.is_registered():
-            b.register()
+        user = ctb_user.CtbUser(
+            name=self.conf["reddit"]["auth"]["user"].lower(), ctb=self
+        )
+        if not user.is_registered():
+            user.register()
 
         # Ensure (total pending tips) < (CointipBot's balance)
         ctb_balance = user.get_balance(kind="givetip")
@@ -353,11 +355,11 @@ class CointipBot(object):
 
     def __init__(
         self,
-        self_checks=True,
-        init_reddit=True,
-        init_coins=True,
-        init_exchanges=True,
+        *,
+        init_coin=True,
         init_db=True,
+        init_reddit=True,
+        self_checks=True,
     ):
         """
         Constructor. Parses configuration file and initializes bot.
