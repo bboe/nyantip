@@ -68,6 +68,7 @@ class CtbAction(object):
             else ctb_user.CtbUser(name=from_user, ctb=ctb)
         )
         self.subreddit = subreddit
+        self.txid = None
 
         # Do some checks
         if self.type in ["givetip", "withdraw"]:
@@ -170,7 +171,7 @@ class CtbAction(object):
         logger.debug("save(%s)", state)
 
         # Make sure no negative values exist
-        if self.coinval < 0.0:
+        if self.coinval and self.coinval < 0.0:
             self.coinval = 0.0
 
         realutc = None
@@ -368,11 +369,11 @@ class CtbAction(object):
                     "decline(): moving %s %s from %s to %s",
                     a.coinval,
                     a.coin.upper(),
-                    self.ctb.conf["reddit"]["auth"]["user"],
+                    self.ctb.conf["reddit"]["auth"]["username"],
                     a.u_from.name,
                 )
                 if not self.ctb.coins[a.coin].sendtouser(
-                    _userfrom=self.ctb.conf["reddit"]["auth"]["user"],
+                    _userfrom=self.ctb.conf["reddit"]["auth"]["username"],
                     _userto=a.u_from.name,
                     _amount=a.coinval,
                 ):
@@ -430,11 +431,11 @@ class CtbAction(object):
             "expire(): moving %s %s from %s to %s",
             self.coinval,
             self.coin.upper(),
-            self.ctb.conf["reddit"]["auth"]["user"],
+            self.ctb.conf["reddit"]["auth"]["username"],
             self.u_from.name,
         )
         if not self.coin.sendtouser(
-            _userfrom=self.ctb.conf["reddit"]["auth"]["user"],
+            _userfrom=self.ctb.conf["reddit"]["auth"]["username"],
             _userto=self.u_from.name,
             _amount=self.coinval,
         ):
@@ -592,12 +593,12 @@ class CtbAction(object):
                     self.coinval,
                     self.coin.upper(),
                     self.u_from.name,
-                    self.ctb.conf["reddit"]["auth"]["user"],
+                    self.ctb.conf["reddit"]["auth"]["username"],
                     minconf,
                 )
                 if not self.coin.sendtouser(
                     _userfrom=self.u_from.name,
-                    _userto=self.ctb.conf["reddit"]["auth"]["user"],
+                    _userto=self.ctb.conf["reddit"]["auth"]["username"],
                     _amount=self.coinval,
                     _minconf=minconf,
                 ):
@@ -679,11 +680,11 @@ class CtbAction(object):
                 logger.info(
                     "givetip(): moving %f from %s to %s...",
                     self.coinval,
-                    self.ctb.conf["reddit"]["auth"]["user"],
+                    self.ctb.conf["reddit"]["auth"]["username"],
                     self.u_to.name,
                 )
                 res = self.coin.sendtouser(
-                    _userfrom=self.ctb.conf["reddit"]["auth"]["user"],
+                    _userfrom=self.ctb.conf["reddit"]["auth"]["username"],
                     _userto=self.u_to.name,
                     _amount=self.coinval,
                 )
@@ -806,6 +807,8 @@ class CtbAction(object):
             )
             self.u_from.tell(subj="+info failed", msg=msg)
             return False
+
+        self.coin = "nya"
 
         # Get coin balances
         try:

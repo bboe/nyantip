@@ -17,6 +17,7 @@
 
 import logging
 import re
+import sys
 import time
 from http.client import CannotSendRequest
 
@@ -49,25 +50,22 @@ class CtbCoin(object):
 
         self.conf = _conf
 
-        # connect to coin daemon
+        logger.debug("connecting to %s...", self.conf["name"])
+        self.conn = Bitcoind(self.conf["config_file"])
+        time.sleep(0.5)
+
+        # set transaction fee
+        logger.info("Setting tx fee of %f", self.conf["txfee"])
         try:
-            logger.debug("connecting to %s...", self.conf["name"])
-            self.conn = Bitcoind(self.conf["config_file"])
-        except BitcoindException as e:
+            self.conn.settxfee(self.conf["txfee"])
+        except ConnectionRefusedError as e:
             logger.error(
                 "error connecting to %s using %s: %s",
                 self.conf["name"],
                 self.conf["config_file"],
                 e,
             )
-            raise
-
-        logger.info("connected to %s", self.conf["name"])
-        time.sleep(0.5)
-
-        # set transaction fee
-        logger.info("Setting tx fee of %f", self.conf["txfee"])
-        self.conn.settxfee(self.conf["txfee"])
+            sys.exit(1)
 
     def getbalance(self, _user=None, _minconf=None):
         """
@@ -217,7 +215,7 @@ class CtbCoin(object):
                     self.conn.walletpassphrase(self.conf["walletpassphrase"], 1)
 
                 # Generate new address
-                addr = self.conn.listaccounts()
+                addr = self.conn.getnewaddress(user)
 
                 # Lock wallet
                 if hasattr(self.conf, "walletpassphrase"):

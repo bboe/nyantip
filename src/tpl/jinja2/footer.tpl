@@ -2,7 +2,7 @@
 {%   set user = a.u_from.name %}
 {% endif %}
 {% if not user_bot and ctb %}
-{%   set user_bot = ctb.conf["reddit"]["auth"]["user"] %}
+{%   set user_bot = ctb.conf["reddit"]["auth"]["username"] %}
 {% endif %}
 {% set compose_url = "http://www.reddit.com/message/compose?to=%s&subject=%s&message=%%2B%s" %}
 {% set i_url = compose_url % (user_bot, "info", "info") %}

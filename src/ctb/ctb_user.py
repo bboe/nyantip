@@ -193,7 +193,7 @@ class CtbUser(object):
                     else:
                         raise Exception(
                             "is_registered(%s): user has %s coins but %s active"
-                            % (self.name, mysqlrow_coins["count"], len(self.ctb.coins))
+                            % (self.name, mysqlrow_coins["count"], 1)
                         )
 
                 # Set some properties
@@ -234,7 +234,7 @@ class CtbUser(object):
             ctb_misc.praw_call(msgobj.reply, msg)
         else:
             logger.debug("tell(%s): sending message", self.name)
-            ctb_misc.praw_call(self.prawobj.send_message, subj, msg)
+            ctb_misc.praw_call(self.prawobj.message, subject=subj, message=msg)
 
         logger.debug("tell(%s) DONE", self.name)
         return True
@@ -264,32 +264,28 @@ class CtbUser(object):
             raise
 
         # Get new coin addresses
-        new_addrs = {}
-        for c in self.ctb.coins:
-            new_addrs[c] = self.ctb.coins[c].getnewaddr(_user=self.name.lower())
-            logger.info("register(%s): got %s address %s", self.name, c, new_addrs[c])
+        address = self.ctb.coin.getnewaddr(_user=self.name.lower())
+        logger.info(
+            "register(%s): got %s address %s", self.name, self.ctb.coin, address
+        )
 
         # Add coin addresses to database
-        for c in new_addrs:
-            try:
-                sql_addr = (
-                    "REPLACE INTO t_addrs (username, coin, address) VALUES (%s, %s, %s)"
-                )
-                mysqlexec = self.ctb.db.execute(
-                    sql_addr, (self.name.lower(), c, new_addrs[c])
-                )
-                if mysqlexec.rowcount <= 0:
-                    # Undo change to database
-                    delete_user(_username=self.name.lower(), _db=self.ctb.db)
-                    raise Exception(
-                        "register(%s): rowcount <= 0 while executing <%s>"
-                        % (self.name, sql_addr % (self.name.lower(), c, new_addrs[c]))
-                    )
-
-            except Exception:
+        try:
+            sql = "REPLACE INTO t_addrs (username, coin, address) VALUES (%s, %s, %s)"
+            params = (self.name.lower(), self.ctb.coin, address)
+            mysqlexec = self.ctb.db.execute(sql, params)
+            if mysqlexec.rowcount <= 0:
                 # Undo change to database
                 delete_user(_username=self.name.lower(), _db=self.ctb.db)
-                raise
+                raise Exception(
+                    "register(%s): rowcount <= 0 while executing <%s>"
+                    % (self.name, sql % params)
+                )
+
+        except Exception:
+            # Undo change to database
+            delete_user(_username=self.name.lower(), _db=self.ctb.db)
+            raise
 
         logger.debug("register(%s) DONE", self.name)
         return True

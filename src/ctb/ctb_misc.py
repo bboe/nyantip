@@ -17,10 +17,6 @@
 
 import logging
 import time
-from socket import timeout
-
-from praw.errors import RateLimitExceeded
-from requests.exceptions import ConnectionError, HTTPError, Timeout
 
 logger = logging.getLogger("ctb.misc")
 
@@ -36,15 +32,8 @@ def praw_call(prawFunc, *extraArgs, **extraKwArgs):
         try:
             res = prawFunc(*extraArgs, **extraKwArgs)
             return res
-
-        except (HTTPError, ConnectionError, Timeout, RateLimitExceeded, timeout) as e:
-            if str(e) == "403 Client Error: Forbidden":
-                logger.warning("praw_call(): 403 forbidden")
-                return False
-            if str(e) == "404 Client Error: Not Found":
-                logger.warning("praw_call(): 404 not found")
-                return False
-            logger.warning("praw_call(): Reddit is down (%s), sleeping...", e)
+        except Exception:
+            raise
             time.sleep(30)
 
     return True
@@ -80,20 +69,8 @@ def reddit_get_parent_author(comment, reddit, ctb):
                     comment.id,
                 )
                 return None
-
-        except IndexError as e:
-            logger.warning("reddit_get_parent_author(): couldn't get author: %s", e)
-            return None
-        except (RateLimitExceeded, timeout) as e:
-            logger.warning(
-                "reddit_get_parent_author(): Reddit is down (%s), sleeping...", e
-            )
-            time.sleep(ctb.conf["misc"]["times"]["sleep_seconds"])
-        except HTTPError as e:
-            logger.warning(
-                "reddit_get_parent_author(): thread or comment not found (%s)", e
-            )
-            return None
+        except Exception:
+            raise
 
     logger.error("reddit_get_parent_author(): returning None (should not get here)")
     return None

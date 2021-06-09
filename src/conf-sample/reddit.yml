@@ -1,6 +1,8 @@
 auth:
-    user: 'nyantip'
-    password: 'mybotpass'
+    client_id: redditscriptclientid
+    client_secret: redditscriptclientsecret
+    password: mybotpass
+    username: nyantip
 
 scan:
     batch_limit: 1000

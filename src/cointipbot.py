@@ -21,15 +21,15 @@ import os
 import sys
 import time
 import traceback
-from socket import timeout
 
 import praw
+import prawcore
 import yaml
 from jinja2 import Environment, PackageLoader
-from praw.errors import RateLimitExceeded
-from requests.exceptions import ConnectionError, HTTPError, Timeout
 
 from ctb import ctb_action, ctb_coin, ctb_db, ctb_misc, ctb_user
+
+__version__ = "0.1"
 
 # Configure CointipBot logger
 logging.basicConfig(
@@ -116,21 +116,19 @@ class CointipBot(object):
         Returns a praw connection object
         """
         logger.debug("connect_reddit(): connecting to Reddit...")
-
-        conn = praw.Reddit(
-            user_agent=self.conf["reddit"]["auth"]["user"], check_for_updates=False
+        reddit = praw.Reddit(
+            check_for_updates=False,
+            user_agent=f"nyancointipbot/{__version__} by u/bboe",
+            **self.conf["reddit"]["auth"],
         )
-        conn.login(
-            self.conf["reddit"]["auth"]["user"],
-            self.conf["reddit"]["auth"]["password"],
-            disable_warning=True,
-        )
-
-        logger.info(
-            "connect_reddit(): logged in to Reddit as %s",
-            self.conf["reddit"]["auth"]["user"],
-        )
-        return conn
+        try:
+            reddit.user.me()  # Ensure credentials are correct
+        except prawcore.exceptions.ResponseException as exception:
+            if exception.response.status_code == 401:
+                logger.error("connect_reddit(): Invalid auth credentials")
+                sys.exit(1)
+            raise
+        return reddit
 
     def self_checks(self):
         """
@@ -139,7 +137,7 @@ class CointipBot(object):
 
         # Ensure bot is a registered user
         user = ctb_user.CtbUser(
-            name=self.conf["reddit"]["auth"]["user"].lower(), ctb=self
+            name=self.conf["reddit"]["auth"]["username"].lower(), ctb=self
         )
         if not user.is_registered():
             user.register()
@@ -210,7 +208,7 @@ class CointipBot(object):
             # Try to fetch some messages
             messages = list(
                 ctb_misc.praw_call(
-                    self.reddit.get_unread,
+                    self.reddit.inbox.unread,
                     limit=self.conf["reddit"]["scan"]["batch_limit"],
                 )
             )
@@ -221,7 +219,7 @@ class CointipBot(object):
                 # Sometimes messages don't have an author (such as 'you are banned from' message)
                 if not m.author:
                     logger.info("check_inbox(): ignoring msg with no author")
-                    ctb_misc.praw_call(m.mark_as_read)
+                    ctb_misc.praw_call(m.mark_read)
                     continue
 
                 logger.info(
@@ -236,17 +234,17 @@ class CointipBot(object):
                         "check_inbox(): duplicate action detected (msg.id %s), ignoring",
                         m.id,
                     )
-                    ctb_misc.praw_call(m.mark_as_read)
+                    ctb_misc.praw_call(m.mark_read)
                     continue
 
                 # Ignore self messages
                 if (
                     m.author
                     and m.author.name.lower()
-                    == self.conf["reddit"]["auth"]["user"].lower()
+                    == self.conf["reddit"]["auth"]["username"].lower()
                 ):
                     logger.debug("check_inbox(): ignoring message from self")
-                    ctb_misc.praw_call(m.mark_as_read)
+                    ctb_misc.praw_call(m.mark_read)
                     continue
 
                 # Ignore messages from banned users
@@ -262,7 +260,7 @@ class CointipBot(object):
                         logger.info(
                             "check_inbox(): ignoring banned user '%s'" % m.author
                         )
-                        ctb_misc.praw_call(m.mark_as_read)
+                        ctb_misc.praw_call(m.mark_read)
                         continue
 
                 action = None
@@ -307,21 +305,11 @@ class CointipBot(object):
                         )
 
                 # Mark message as read
-                ctb_misc.praw_call(m.mark_as_read)
+                ctb_misc.praw_call(m.mark_read)
 
-        except (HTTPError, ConnectionError, Timeout, RateLimitExceeded, timeout) as e:
-            logger.warning("check_inbox(): Reddit is down (%s), sleeping", e)
-            time.sleep(self.conf["misc"]["times"]["sleep_seconds"])
-            pass
         except Exception as e:
             logger.exception("check_inbox(): %s", e)
-            # raise
-        # ^ what do we say to death?
-        # 	    logger.error("^not today (^skipped raise)")
-        #            raise #not sure if right number of spaces; try to quit on error
-        # for now, quitting on error because of dealing with on-going issues; switch
-        # back when stable
-
+            raise
         logger.debug("check_inbox() DONE")
         return True
 
