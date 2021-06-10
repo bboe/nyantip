@@ -272,7 +272,7 @@ class CtbUser(object):
         # Add coin addresses to database
         try:
             sql = "REPLACE INTO t_addrs (username, coin, address) VALUES (%s, %s, %s)"
-            params = (self.name.lower(), self.ctb.coin, address)
+            params = (self.name.lower(), self.ctb.coin.conf["unit"], address)
             mysqlexec = self.ctb.db.execute(sql, params)
             if mysqlexec.rowcount <= 0:
                 # Undo change to database

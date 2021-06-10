@@ -34,9 +34,6 @@ def update_stats(ctb=None):
 
     stats = ""
 
-    if not ctb.conf["reddit"]["stats"]["enabled"]:
-        return None
-
     for s in sorted(ctb.conf["db"]["sql"]["globalstats"]):
         logger.debug("update_stats(): getting stats for '%s'" % s)
         sql = ctb.conf["db"]["sql"]["globalstats"][s]["query"]
@@ -96,9 +93,6 @@ def update_tips(ctb=None):
     Update page listing all tips
     """
 
-    if not ctb.conf["reddit"]["stats"]["enabled"]:
-        return None
-
     # Start building stats page
     tip_list = "### All Completed Tips\n\n"
 
@@ -140,10 +134,6 @@ def update_all_user_stats(ctb=None):
     Update individual user stats for all uers
     """
 
-    if not ctb.conf["reddit"]["stats"]["enabled"]:
-        logger.error("update_all_user_stats(): stats are not enabled in config.yml")
-        return None
-
     users = ctb.db.execute(ctb.conf["db"]["sql"]["userstats"]["users"])
     for u in users:
         update_user_stats(ctb=ctb, username=u["username"])
@@ -153,9 +143,6 @@ def update_user_stats(ctb=None, username=None):
     """
     Update individual user stats for given username
     """
-
-    if not ctb.conf["reddit"]["stats"]["enabled"]:
-        return None
 
     # List of coins
     coins_q = ctb.db.execute(ctb.conf["db"]["sql"]["userstats"]["coins"])

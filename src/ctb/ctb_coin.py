@@ -31,9 +31,6 @@ class CtbCoin(object):
     Coin class for cointip bot
     """
 
-    conn = None
-    conf = None
-
     def __init__(self, _conf=None):
         """
         Initialize CtbCoin with given parameters. _conf is a coin config dictionary defined in conf/coins.yml
@@ -66,6 +63,9 @@ class CtbCoin(object):
                 e,
             )
             sys.exit(1)
+
+    def __str__(self):
+        return self.conf["name"]
 
     def getbalance(self, _user=None, _minconf=None):
         """

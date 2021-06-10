@@ -1,18 +1,17 @@
-unit: nya
-name: Nyancoin
-symbol: 'Ɲ'
 config_file: '~/.nyancoin/nyancoin.conf'
-config_rpcserver: '127.0.0.1'
+explorer:
+    transaction: https://nyancha.in/tx/
+    url: https://nyancha.in/address/
 minconf:
     givetip: 4
     withdraw: 60
+name: Nyancoin
+regex:
+    address: '(K[1-9a-z]{20,40})'
+    units: '(Nyan|Nyancoin|Nyancoins|Nyans|Cat|Cats|Nyancat|Nyancats|Ɲ|nyan|nyancoin|nyancoins|nyans|N|cat|cats|nyancat|nyancats)'
 txmin:
     givetip: 0.1
     withdraw: 1
 txfee: 0.0001
-explorer:
-    address: 'http://nyancha.in/address/'
-    transaction: 'http://nyancha.in/tx/'
-regex:
-    address: '(K[1-9a-z]{20,40})'
-    units: '(Nyan|Nyancoin|Nyancoins|Nyans|Cat|Cats|Nyancat|Nyancats|Ɲ|nyan|nyancoin|nyancoins|nyans|N|cat|cats|nyancat|nyancats)'
+symbol: 'Ɲ'
+unit: nya

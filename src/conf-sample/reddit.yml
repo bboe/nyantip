@@ -4,32 +4,29 @@ auth:
     password: mybotpass
     username: nyantip
 
+banned_users:
+    list: ['nyantip', 'bitcointip', 'altcointip']
+    method: list
+    subreddit: 'mysubreddit'
+
+contact:
+    url: https://www.reddit.com/message/compose/?to=nyantip
+
+help:
+    url: https://www.reddit.com/r/nyantip/wiki/index
+
+messages:
+    declined: false
+    expired: false
+    pending: false
+    sorry: true
+    verified: true
+
 scan:
     batch_limit: 1000
 
-help:
-    enabled: true
-    url: 'http://www.reddit.com/r/nyantip/wiki/index'
-
-contact:
-    enabled: true
-    url: 'http://www.reddit.com/message/compose/?to=nyantip'
-
-messages:
-    verified: true
-    pending: false
-    expired: false
-    declined: false
-    sorry: true
-
-banned_users:
-    method: list
-    list: ['nyantip', 'bitcointip', 'altcointip']
-    subreddit: 'mysubreddit'
-
 stats:
-    enabled: false
-    subreddit: 'mysubreddit'
-    page: 'stats'
-    page_tips: 'tips'
-    url: 'https://www.reddit.com/r/mysubreddit/wiki/stats'
+    page: stats
+    page_tips: tips
+    subreddit: mysubreddit
+    url: https://www.reddit.com/r/mysubreddit/wiki/stats

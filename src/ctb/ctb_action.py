@@ -808,26 +808,24 @@ class CtbAction(object):
             self.u_from.tell(subj="+info failed", msg=msg)
             return False
 
-        self.coin = "nya"
-
         # Get coin balances
         try:
             # Get tip balance
-            balance = self.coin.getbalance(
+            balance = self.ctb.coin.getbalance(
                 _user=self.u_from.name,
-                _minconf=self.coin.conf["minconf"]["givetip"],
+                _minconf=self.ctb.coin.conf["minconf"]["givetip"],
             )
         except Exception as exception:
             logger.error(
                 "info(%s): error retrieving %s coininfo: %s",
                 self.u_from.name,
-                self.coin,
+                self.ctb.coin,
                 exception,
             )
             raise
         sql = "SELECT address FROM t_addrs WHERE username = '%s' AND coin = '%s'" % (
             self.u_from.name.lower(),
-            self.coin.unit,
+            self.ctb.coin.conf["unit"],
         )
         mysqlrow = self.ctb.db.execute(sql).fetchone()
         if not mysqlrow:
@@ -838,7 +836,8 @@ class CtbAction(object):
             action=self,
             address=mysqlrow["address"],
             balance=balance,
-            coin=self.coin,
+            coin=self.ctb.coin,
+            ctb=self.ctb,
             misc_conf=self.ctb.conf["misc"],
         )
         ctb_misc.praw_call(self.msg.reply, msg)
@@ -924,8 +923,7 @@ def init_regex(ctb):
                 }
 
                 if regex["rg_coin"] > 0:
-                    if not ctb.coin:
-                        continue
+                    assert ctb.coin
                     rval2 = rval1.replace(
                         "{REGEX_COIN}", ctb.coin.conf["regex"]["units"]
                     )
@@ -933,7 +931,7 @@ def init_regex(ctb):
                         "{REGEX_ADDRESS}", ctb.coin.conf["regex"]["address"]
                     )
                     regex = re.compile(rval2, re.IGNORECASE | re.DOTALL)
-                    entry["coin"] = ctb.coin.conf["unit"]
+                    entry["coin"] = ctb.coin
                 else:
                     assert regex["rg_keyword"] > 0
                     regex = re.compile(rval1, re.IGNORECASE | re.DOTALL)
