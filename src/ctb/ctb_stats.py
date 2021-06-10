@@ -79,12 +79,14 @@ def update_stats(ctb=None):
             ctb.conf["reddit"]["stats"]["page"],
         )
     )
+    pagename = ctb.conf["reddit"]["stats"]["page"]
+    wiki_page = ctb.reddit.subreddit(ctb.conf["reddit"]["stats"]["subreddit"]).wiki[
+        pagename
+    ]
     return ctb_misc.praw_call(
-        ctb.reddit.edit_wiki_page,
-        ctb.conf["reddit"]["stats"]["subreddit"],
-        ctb.conf["reddit"]["stats"]["page"],
-        stats,
-        "Update by ALTcointip bot",
+        wiki_page.edit,
+        content=stats,
+        reason="Update by nyantip bot",
     )
 
 
@@ -118,14 +120,16 @@ def update_tips(ctb=None):
             ctb.conf["reddit"]["stats"]["page_tips"],
         )
     )
-    ctb_misc.praw_call(
-        ctb.reddit.edit_wiki_page,
-        ctb.conf["reddit"]["stats"]["subreddit"],
-        ctb.conf["reddit"]["stats"]["page_tips"],
-        tip_list,
-        "Update by ALTcointip bot",
-    )
 
+    pagename = ctb.conf["reddit"]["stats"]["page_tips"]
+    wiki_page = ctb.reddit.subreddit(ctb.conf["reddit"]["stats"]["subreddit"]).wiki[
+        pagename
+    ]
+    ctb_misc.praw_call(
+        wiki_page.edit,
+        content=tip_list,
+        reason="Update by nyantip bot",
+    )
     return True
 
 
@@ -165,7 +169,7 @@ def update_user_stats(ctb=None, username=None):
         if total_tipped_coin["total_coin"] is not None:
             user_stats += "**%s**|%s %.6f\n" % (
                 c,
-                ctb.conf["coins"][c]["symbol"],
+                ctb.conf["coin"]["symbol"],
                 total_tipped_coin["total_coin"],
             )
     user_stats += "\n"
@@ -181,7 +185,7 @@ def update_user_stats(ctb=None, username=None):
         if total_received_coin["total_coin"] is not None:
             user_stats += "**%s**|%s %.6f\n" % (
                 c,
-                ctb.conf["coins"][c]["symbol"],
+                ctb.conf["coin"]["symbol"],
                 total_received_coin["total_coin"],
             )
     user_stats += "\n"
@@ -213,12 +217,13 @@ def update_user_stats(ctb=None, username=None):
         "update_user_stats(): updating subreddit '%s', page '%s'"
         % (ctb.conf["reddit"]["stats"]["subreddit"], page)
     )
+    wiki_page = ctb.reddit.subreddit(ctb.conf["reddit"]["stats"]["subreddit"]).wiki[
+        page
+    ]
     ctb_misc.praw_call(
-        ctb.reddit.edit_wiki_page,
-        ctb.conf["reddit"]["stats"]["subreddit"],
-        page,
-        user_stats,
-        "Update by ALTcointip bot",
+        wiki_page.edit,
+        content=user_stats,
+        reason="Update by nyantip bot",
     )
     return True
 
@@ -234,7 +239,7 @@ def format_value(m, k, username, ctb, compact=False):
 
     # Format cryptocoin
     if type(m[k]) == float and k.find("coin") > -1:
-        coin_symbol = ctb.conf["coins"][m["coin"]]["symbol"]
+        coin_symbol = ctb.conf["coin"]["symbol"]
         return "%s&nbsp;%.5g" % (coin_symbol, m[k])
 
     # Format username
@@ -261,7 +266,7 @@ def format_value(m, k, username, ctb, compact=False):
         displayaddr = m[k][:6] + "..." + m[k][-5:]
         return "[%s](%s%s)" % (
             displayaddr,
-            ctb.conf["coins"][m["coin"]]["explorer"]["address"],
+            ctb.conf["coin"]["explorer"]["address"],
             m[k],
         )
 

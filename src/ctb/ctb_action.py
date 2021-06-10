@@ -96,19 +96,19 @@ class CtbAction(object):
 
         # Determine coinval if keyword is given instead of numeric value
         if self.type in ["givetip", "withdraw"]:
-            if self.keyword and self.coin and not type(self.coinval) in [float, int]:
+            if self.keyword and self.coin and self.coinval is None:
                 # Determine coin value
                 logger.debug(
                     "__init__(): determining coin value given '%s'",
                     self.keyword,
                 )
                 val = self.ctb.conf["keywords"][self.keyword]["value"]
-                if type(val) == float:
+                if isinstance(val, float):
                     self.coinval = val
                 elif type(val) == str:
                     logger.debug("__init__(): evaluating '%s'", val)
                     self.coinval = eval(val)
-                    if not type(self.coinval) == float:
+                    if not isinstance(self.coinval, float):
                         logger.warning(
                             "__init__(atype=%s, from_user=%s): couldn't determine coinval from keyword '%s' (not float)"
                             % (self.type, self.u_from.name, self.keyword)
@@ -116,13 +116,13 @@ class CtbAction(object):
                         return None
                 else:
                     logger.warning(
-                        "__init__(atype=%s, from_user=%s): couldn't determine coinval from keyword '%s' (not float or str)"
+                        "__init__(atype=%s, from_user=%s): couldn't determine coinval from keyword '%s' (not float nor str)"
                         % (self.type, self.u_from.name, self.keyword)
                     )
                     return None
 
             # By this point we should have a proper coinval
-            if not type(self.coinval) in [float, int]:
+            if not isinstance(self.coinval, float):
                 raise Exception(
                     "__init__(atype=%s, from_user=%s): coinval isn't determined"
                     % (self.type, self.u_from.name)
@@ -368,7 +368,7 @@ class CtbAction(object):
                 logger.info(
                     "decline(): moving %s %s from %s to %s",
                     a.coinval,
-                    a.coin.upper(),
+                    a.coin.conf["name"].upper(),
                     self.ctb.conf["reddit"]["auth"]["username"],
                     a.u_from.name,
                 )
@@ -430,7 +430,7 @@ class CtbAction(object):
         logger.info(
             "expire(): moving %s %s from %s to %s",
             self.coinval,
-            self.coin.upper(),
+            self.coin.conf["name"].upper(),
             self.ctb.conf["reddit"]["auth"]["username"],
             self.u_from.name,
         )
@@ -502,20 +502,19 @@ class CtbAction(object):
                 return False
 
             # Verify that u_from has coin address
-            if not self.u_from.get_addr(coin=self.coin):
+            if not self.u_from.get_addr():
                 logger.error(
-                    "validate(): user %s doesn't have %s address",
+                    "validate(): user %s doesn't have an address",
                     self.u_from.name,
-                    self.coin.upper(),
                 )
                 self.save("failed")
                 raise Exception
 
             # Verify minimum transaction size
             txkind = "givetip" if self.u_to else "withdraw"
-            if self.coinval < self.coin.txmin[txkind]:
+            if self.coinval < self.coin.conf["txmin"][txkind]:
                 msg = self.ctb.jenv.get_template("tip-below-minimum.tpl").render(
-                    min_value=self.coin.txmin[txkind],
+                    min_value=self.coin.conf["txmin"][txkind],
                     a=self,
                     ctb=self.ctb,
                 )
@@ -527,7 +526,7 @@ class CtbAction(object):
             # Verify balance (unless it's a pending transaction being processed, in which case coins have been already moved to pending acct)
             if self.u_to and not is_pending:
                 # Tip to user (requires less confirmations)
-                balance_avail = self.u_from.get_balance(coin=self.coin, kind="givetip")
+                balance_avail = self.u_from.get_balance(kind="givetip")
                 if not (
                     balance_avail > self.coinval
                     or abs(balance_avail - self.coinval) < 0.000001
@@ -541,10 +540,10 @@ class CtbAction(object):
                     return False
             elif self.addr_to:
                 # Tip/withdrawal to address (requires more confirmations)
-                balance_avail = self.u_from.get_balance(coin=self.coin, kind="withdraw")
+                balance_avail = self.u_from.get_balance(kind="withdraw")
                 balance_need = self.coinval
                 # Add mandatory network transaction fee
-                balance_need += self.coin.txfee
+                balance_need += self.coin.conf["txfee"]
                 if not (
                     balance_avail > balance_need
                     or abs(balance_avail - balance_need) < 0.000001
@@ -591,7 +590,7 @@ class CtbAction(object):
                 logger.info(
                     "validate(): moving %s %s from %s to %s (minconf=%s)...",
                     self.coinval,
-                    self.coin.upper(),
+                    self.coin.conf["name"].upper(),
                     self.u_from.name,
                     self.ctb.conf["reddit"]["auth"]["username"],
                     minconf,
@@ -961,11 +960,11 @@ def eval_message(msg, ctb):
             logger.debug("eval_message(): match found")
 
             # Extract matched fields into variables
-            to_addr = (
-                match.group(regex_info["rg_address"])
-                if regex_info["rg_address"] > 0
-                else None
-            )
+            # to_addr = (
+            #     match.group(regex_info["rg_address"])
+            #     if regex_info["rg_address"] > 0
+            #     else None
+            # )
             amount = (
                 match.group(regex_info["rg_amount"])
                 if regex_info["rg_amount"] > 0
@@ -976,9 +975,14 @@ def eval_message(msg, ctb):
                 if regex_info["rg_keyword"] > 0
                 else None
             )
+            to_user = (
+                match.group(regex_info["rg_to_user"])[1:]
+                if regex_info["rg_to_user"] > 0
+                else None
+            )
 
-            if not to_addr and regex_info["action"] == "givetip":
-                logger.debug("eval_message(): can't tip with no to_addr")
+            if not to_user and regex_info["action"] == "givetip":
+                logger.debug("eval_message(): can't tip with no to_user")
                 return None
 
             # Return CtbAction instance with given variables
@@ -986,8 +990,8 @@ def eval_message(msg, ctb):
                 atype=regex_info["action"],
                 msg=msg,
                 from_user=msg.author,
-                to_user=None,
-                to_addr=to_addr,
+                to_user=to_user,
+                to_addr=None,
                 coin=regex_info["coin"],
                 coin_val=amount,
                 keyword=keyword,

@@ -27,22 +27,15 @@ class CtbUser(object):
     User class for cointip bot
     """
 
-    # Basic properties
-    name = None
-    giftamount = None
-    joindate = None
-    addr = {}
-    banned = False
-
-    # Objects
-    prawobj = None
-    ctb = None
-
     def __init__(self, name=None, redditobj=None, ctb=None):
         """
         Initialize CtbUser object with given parameters
         """
         logger.debug("__init__(%s)", name)
+
+        self.addr = None
+        self.banned = None
+        self.prawobj = None
 
         if not bool(name):
             raise Exception("__init__(): name must be set")
@@ -52,7 +45,7 @@ class CtbUser(object):
             raise Exception("__init__(): ctb must be set")
         self.ctb = ctb
 
-        if bool(redditobj):
+        if redditobj:
             self.prawobj = redditobj
 
         # Determine if user is banned
@@ -79,11 +72,9 @@ class CtbUser(object):
         """
         Return string representation of self
         """
-        me = "<CtbUser: name=%s, giftamnt=%s, joindate=%s, addr=%s, redditobj=%s, ctb=%s, banned=%s>"
+        me = "<CtbUser: name=%s, addr=%s, redditobj=%s, ctb=%s, banned=%s>"
         me = me % (
             self.name,
-            self.giftamount,
-            self.joindate,
             self.addr,
             self.prawobj,
             self.ctb,
@@ -102,34 +93,30 @@ class CtbUser(object):
         logger.debug("balance(%s) DONE", self.name)
         return float(balance)
 
-    def get_addr(self, coin=None):
+    def get_addr(self):
         """
         Return coin address of user
         """
-        logger.debug("get_addr(%s, %s)", self.name, coin)
+        logger.debug(f"get_addr({self.name})")
 
-        if hasattr(self.addr, coin):
-            return self.addr[coin]
+        if self.addr:
+            return self.addr
 
         sql = "SELECT address from t_addrs WHERE username = %s AND coin = %s"
         mysqlrow = self.ctb.db.execute(
-            sql, (self.name.lower(), coin.lower())
+            sql, (self.name.lower(), self.ctb.coin.conf["unit"])
         ).fetchone()
         if mysqlrow is None:
-            logger.debug("get_addr(%s, %s) DONE (no)", self.name, coin)
+            logger.debug("get_addr(%s) DONE (no)", self.name)
             return None
-        else:
-            self.addr[coin] = mysqlrow["address"]
-            logger.debug(
-                "get_addr(%s, %s) DONE (%s)",
-                self.name,
-                coin,
-                self.addr[coin],
-            )
-            return self.addr[coin]
 
-        logger.debug("get_addr(%s, %s) DONE (should never happen)", self.name, coin)
-        return None
+        self.addr = mysqlrow["address"]
+        logger.debug(
+            "get_addr(%s) DONE (%s)",
+            self.name,
+            self.addr,
+        )
+        return self.addr
 
     def is_on_reddit(self):
         """
@@ -142,19 +129,16 @@ class CtbUser(object):
             logger.debug("is_on_reddit(%s) DONE (yes)", self.name)
             return True
 
-        try:
-            self.prawobj = ctb_misc.praw_call(self.ctb.reddit.get_redditor, self.name)
-            if self.prawobj:
-                return True
-            else:
-                return False
+        self.prawobj = self.ctb.reddit.redditor(self.name)
 
+        try:
+            ctb_misc.praw_call(getattr, self.prawobj, "created_utc")
         except Exception:
+            raise
             logger.debug("is_on_reddit(%s) DONE (no)", self.name)
             return False
 
-        logger.warning("is_on_reddit(%s): returning None (shouldn't happen)", self.name)
-        return None
+        return True
 
     def is_registered(self):
         """
@@ -195,9 +179,6 @@ class CtbUser(object):
                             "is_registered(%s): user has %s coins but %s active"
                             % (self.name, mysqlrow_coins["count"], 1)
                         )
-
-                # Set some properties
-                self.giftamount = mysqlrow["giftamount"]
 
                 # Done
                 logger.debug("is_registered(%s) DONE (yes)", self.name)

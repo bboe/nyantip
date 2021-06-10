@@ -238,11 +238,7 @@ class CointipBot(object):
                     continue
 
                 # Ignore self messages
-                if (
-                    m.author
-                    and m.author.name.lower()
-                    == self.conf["reddit"]["auth"]["username"].lower()
-                ):
+                if m.author == self.conf["reddit"]["auth"]["username"]:
                     logger.debug("check_inbox(): ignoring message from self")
                     ctb_misc.praw_call(m.mark_read)
                     continue

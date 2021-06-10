@@ -6,14 +6,14 @@
 {%   set stats_user_to_fmt = " ^^[[stats]](%s_%s)" % (ctb.conf["reddit"]["stats"]["url"], a.u_to.name) %}
 {% endif %}
 {% if a.addr_to: %}
-{%   set ex = ctb.conf["coins"][a.coin]["explorer"] %}
+{%   set ex = ctb.conf["coin"]["explorer"] %}
 {%   set user_to_fmt = " ^[%s](%s%s)" % (a.addr_to, ex.address, a.addr_to) %}
 {%   set arrow_fmt = " ^[->](%s%s)" % (ex.transaction, a.txid) %}
 {% endif %}
 {% if a.coinval: %}
 {%   set coin_amount = a.coinval %}
-{%   set coin_name = ctb.conf["coins"][a.coin]["name"] %}
-{%   set coin_symbol = ctb.conf["coins"][a.coin]["symbol"] %}
+{%   set coin_name = ctb.conf["coin"]["name"] %}
+{%   set coin_symbol = ctb.conf["coin"]["symbol"] %}
 {%   set coin_amount_fmt = " ^__%s%.6f__ ^__%s(s)__" % (coin_symbol, coin_amount, coin_name) %}
 {% endif %}
 {% set stats_user_from_fmt = " ^^[[stats]](%s_%s)" % (ctb.conf["reddit"]["stats"]["url"], a.u_from.name) %}
