@@ -21,8 +21,9 @@
 import logging
 import re
 import time
+from decimal import Decimal
 
-from . import ctb_misc
+from .util import log_function
 
 logger = logging.getLogger("ctb.stats")
 
@@ -143,17 +144,7 @@ def update_all_user_stats(ctb=None):
         update_user_stats(ctb=ctb, username=u["username"])
 
 
-def update_user_stats(ctb=None, username=None):
-    """
-    Update individual user stats for given username
-    """
-
-    # List of coins
-    coins_q = ctb.db.execute(ctb.conf["db"]["sql"]["userstats"]["coins"])
-    coins = []
-    for c in coins_q:
-        coins.append(c["coin"])
-
+def update_user_stats(*, ctb, username):
     # Start building stats page
     user_stats = "### Tipping Summary for /u/%s\n\n" % username
     page = ctb.conf["reddit"]["stats"]["page"] + "_" + username
@@ -161,17 +152,15 @@ def update_user_stats(ctb=None, username=None):
     # Total Tipped
     user_stats += "#### Total Tipped (Coins)\n\n"
     user_stats += "coin|total\n:---|---:\n"
-    for c in coins:
-        mysqlexec = ctb.db.execute(
-            ctb.conf["db"]["sql"]["userstats"]["total_tipped_coin"], (username, c)
+    result = ctb.db.execute(
+        ctb.conf["db"]["sql"]["userstats"]["total_tipped"], (username,)
+    ).fetchone()
+    if result["total"] is not None:
+        user_stats += "**%s**|%s %.6f\n" % (
+            ctb.conf["coin"]["name"],
+            ctb.conf["coin"]["symbol"],
+            result["total"],
         )
-        total_tipped_coin = mysqlexec.fetchone()
-        if total_tipped_coin["total_coin"] is not None:
-            user_stats += "**%s**|%s %.6f\n" % (
-                c,
-                ctb.conf["coin"]["symbol"],
-                total_tipped_coin["total_coin"],
-            )
     user_stats += "\n"
 
     # Total received
@@ -238,7 +227,7 @@ def format_value(m, k, username, ctb, compact=False):
         return "-"
 
     # Format cryptocoin
-    if type(m[k]) == float and k.find("coin") > -1:
+    if isinstance(m[k], Decimal) and k.find("coin") > -1:
         coin_symbol = ctb.conf["coin"]["symbol"]
         return "%s&nbsp;%.5g" % (coin_symbol, m[k])
 

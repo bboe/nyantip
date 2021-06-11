@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
     This file is part of ALTcointip.
 
@@ -20,18 +19,18 @@ import logging
 import os
 import sys
 import time
-import traceback
+from decimal import Decimal
 
 import praw
 import prawcore
 import yaml
-from jinja2 import Environment, PackageLoader
+from jinja2 import Environment, PackageLoader, StrictUndefined
 
-from ctb import ctb_action, ctb_coin, ctb_db, ctb_misc, ctb_user
+from ctb import ctb_action, ctb_coin, ctb_db, ctb_user
+from ctb.util import log_function
 
 __version__ = "0.1"
 
-# Configure CointipBot logger
 logging.basicConfig(
     datefmt="%H:%M:%S",
     format="%(asctime)s %(levelname)-8s %(name)-12s %(message)s",
@@ -40,53 +39,124 @@ logging.getLogger("bitcoin").setLevel(logging.DEBUG)
 logger = logging.getLogger("ctb")
 logger.setLevel(logging.DEBUG)
 
+log_decorater = log_function(klass="CointipBot", log_method=logger.info)
 
-class CointipBot(object):
-    """
-    Main class for cointip bot
-    """
 
-    def parse_config(self):
-        """
-        Returns a Python object with CointipBot configuration
-        """
-        logger.debug("parse_config(): parsing config files...")
+class CointipBot:
+    @log_decorater
+    def __init__(
+        self,
+        *,
+        init_coin=True,
+        init_db=True,
+        init_reddit=True,
+        self_checks=True,
+    ):
+        self.banned_users = set()
+        self.coin = None
+        self.conf = self.parse_config()
+        self.runtime = {"regex": []}
 
+        self.bot = ctb_user.CtbUser(
+            ctb=self, name=self.conf["reddit"]["auth"]["username"]
+        )
+
+        self.jenv = Environment(
+            loader=PackageLoader("cointipbot", "tpl/jinja2"),
+            trim_blocks=True,
+            undefined=StrictUndefined,
+        )
+
+        if init_db:
+            self.db = self.connect_db()
+        if init_coin:
+            self.coin = ctb_coin.CtbCoin(conf=self.conf["coin"])
+        if init_reddit:
+            self.reddit = self.connect_reddit()
+            ctb_action.init_regex(self)
+            self.load_banned_users()
+        if self_checks:
+            self.self_checks()
+
+    @staticmethod
+    def config_to_decimal(container, key):
+        assert isinstance(container[key], str)
+        container[key] = Decimal(container[key]).normalize()
+
+    @classmethod
+    @log_decorater
+    def parse_config(cls):
         conf = {}
-        try:
-            for name in [
-                "coin",
-                "db",
-                "keywords",
-                "misc",
-                "reddit",
-                "regex",
-            ]:
-                path = os.path.join("conf", f"{name}.yml")
-                logger.debug("parse_config(): reading %s", path)
-                with open(path) as fp:
-                    conf[name] = yaml.safe_load(fp)
-        except yaml.YAMLError as e:
-            logger.error("parse_config(): error reading config file: %s", e)
-            if hasattr(e, "problem_mark"):
-                logger.error(
-                    "parse_config(): error position: (line %s, column %s)",
-                    e.problem_mark.line + 1,
-                    e.problem_mark.column + 1,
-                )
-            sys.exit(1)
+        for name in [
+            "coin",
+            "db",
+            "keywords",
+            "misc",
+            "reddit",
+            "regex",
+        ]:
+            path = os.path.join("conf", f"{name}.yml")
+            logger.debug("parse_config(): reading %s", path)
+            with open(path) as fp:
+                conf[name] = yaml.safe_load(fp)
 
-        logger.info("parse_config(): config files has been parsed")
+        cls.config_to_decimal(conf["coin"], "minimum_tip")
+        cls.config_to_decimal(conf["coin"], "minimum_withdraw")
+        cls.config_to_decimal(conf["coin"], "transaction_fee")
+
         return conf
 
-    def connect_db(self):
-        """
-        Returns a database connection object
-        """
-        logger.debug("connect_db(): connecting to database...")
+    @log_decorater
+    def process_message(self, message):
+        message_type = "comment" if message.was_comment else "message"
+        if not message.author:
+            logger.info(f"ignoring {message_type} with no author")
+            return
+        logger.info(f"{message_type} from {message.author}")
 
+        if ctb_action.check_action(ctb=self, message_id=message.id):
+            logger.warning(
+                "duplicate action detected (message.id %s), ignoring",
+                message.id,
+            )
+            return
+        if message.author == self.conf["reddit"]["auth"]["username"]:
+            logger.debug("ignoring message from self")
+            return
+        if message.author in self.banned_users:
+            logger.info(f"ignoring message from banned user {message.author}")
+            return
+
+        action_method = (
+            ctb_action.eval_comment if message.was_comment else ctb_action.eval_message
+        )
+        action = action_method(ctb=self, message=message)
+        if action:
+            logger.info(f"{action.action} from {message.author} ({message.id})")
+            logger.debug(f"message body: {message.body}")
+            action.perform()
+            return
+
+        logger.info("no match")
+        if message_type == "message":
+            response = self.jenv.get_template("didnt-understand.tpl").render(
+                ctb=self,
+                message=message,
+                message_type=message_type,
+            )
+            logger.debug(f"{response}")
+            ctb_user.CtbUser(
+                ctb=self, name=message.author, redditor=message.author
+            ).tell(
+                body=response,
+                message=message,
+                subject="What?",
+            )
+
+    @log_decorater
+    def connect_db(self):
         if self.conf["db"]["auth"]["user"]:
-            dsn = "mysql+mysqldb://%s:%s@%s:%s/%s?charset=utf8" % (
+            dsn = "mysql+mysqldb://%s:%s@%s:%s/%s?charset=utf8mb4" % (
                 self.conf["db"]["auth"]["user"],
                 self.conf["db"]["auth"]["password"],
                 self.conf["db"]["auth"]["host"],
@@ -94,28 +164,20 @@ class CointipBot(object):
                 self.conf["db"]["auth"]["dbname"],
             )
         else:
-            dsn = f"mysql+mysqldb://{self.conf['db']['auth']['host']}:{self.conf['db']['auth']['port']}/{self.conf['db']['auth']['dbname']}?charset=utf8"
-
-        dbobj = ctb_db.CointipBotDatabase(dsn)
-
-        try:
-            conn = dbobj.connect()
-        except Exception as e:
-            logger.error("connect_db(): error connecting to database: %s", e)
-            sys.exit(1)
+            dsn = f"mysql+mysqldb://{self.conf['db']['auth']['host']}:{self.conf['db']['auth']['port']}/{self.conf['db']['auth']['dbname']}?charset=utf8mb4"
 
         logger.info(
-            "connect_db(): connected to database %s as %s",
+            "connect_db(): connecting to database %s as %s",
             self.conf["db"]["auth"]["dbname"],
             self.conf["db"]["auth"]["user"] or "anonymous",
         )
-        return conn
+        return ctb_db.CointipBotDatabase(dsn).connect()
 
+    @log_decorater
     def connect_reddit(self):
         """
         Returns a praw connection object
         """
-        logger.debug("connect_reddit(): connecting to Reddit...")
         reddit = praw.Reddit(
             check_for_updates=False,
             user_agent=f"nyancointipbot/{__version__} by u/bboe",
@@ -130,266 +192,70 @@ class CointipBot(object):
             raise
         return reddit
 
+    @log_decorater
+    def expire_pending_tips(self):
+        expire_hours = int(self.conf["misc"]["expire_pending_hours"])
+
+        for action in ctb_action.actions(
+            action="tip",
+            created_at=f"created_at < DATE_ADD(NOW(), INTERVAL {expire_hours} HOUR)",
+            ctb=self,
+            status="pending",
+        ):
+            action.expire()
+
+    @log_decorater
+    def load_banned_users(self):
+        settings = self.conf["reddit"].get("banned_users")
+        if not settings:
+            return
+
+        self.banned_users = set()
+
+        subreddit = settings.get("subreddit")
+        if subreddit:
+            for user in self.reddit.subreddit(subreddit).banned(limit=None):
+                self.banned_users.add(user)
+
+        static_list = settings.get("list", [])
+        for username in static_list:
+            self.banned_users.add(self.reddit.redditor(username))
+
+    def main(self):
+        logger.info("main loop starting")
+        for item in self.reddit.inbox.stream(pause_after=6):
+            if item is None:
+                self.expire_pending_tips()
+            else:
+                self.process_message(item)
+                item.mark_read()
+
     def self_checks(self):
-        """
-        Run self-checks before starting the bot
-        """
-
         # Ensure bot is a registered user
-        user = ctb_user.CtbUser(
-            name=self.conf["reddit"]["auth"]["username"].lower(), ctb=self
-        )
-        if not user.is_registered():
-            user.register()
+        if not self.bot.is_registered():
+            self.bot.register()
 
-        # Ensure (total pending tips) < (CointipBot's balance)
-        ctb_balance = user.get_balance(kind="givetip")
-        pending_tips = float(0)
-        actions = ctb_action.get_actions(atype="givetip", state="pending", ctb=self)
-        for action in actions:
-            pending_tips += action.coinval
-        if (ctb_balance - pending_tips) < -0.000001:
+        # Ensure pending tips <= CointipBot's balance
+        balance = self.bot.balance(kind="tip")
+        pending_tips = sum(
+            x.value
+            for x in ctb_action.actions(action="tip", ctb=self, status="pending")
+        )
+        if balance - pending_tips < -0.000001:
             raise Exception(
-                "self_checks(): CointipBot's balance (%s) < total pending tips (%s)"
-                % (ctb_balance, pending_tips)
+                f"self_checks(): CointipBot's balance ({balance}) < total pending tips ({pending_tips})"
             )
 
         # Ensure coin balance is positive
-        balance = float(self.coin.conn.getbalance())
+        balance = float(self.coin.connection.getbalance())
         if balance < 0:
             raise Exception(f"self_checks(): negative balance: {balance}")
 
         # Ensure user accounts are intact and balances are not negative
-        sql = "SELECT username FROM t_users ORDER BY username"
-        for mysqlrow in self.db.execute(sql):
-            user = ctb_user.CtbUser(name=mysqlrow["username"], ctb=self)
+        for row in self.db.execute("SELECT username FROM users ORDER BY username"):
+            username = row["username"]
+            user = ctb_user.CtbUser(ctb=self, name=username)
             if not user.is_registered():
-                raise Exception(
-                    f"self_checks(): user {mysqlrow['username']} is_registered() failed"
-                )
-            if user.get_balance(kind="givetip") < 0:
-                raise Exception(
-                    f"self_checks(): user {mysqlrow['username']} balance is negative"
-                )
-
-        return True
-
-    def expire_pending_tips(self):
-        """
-        Decline any pending tips that have reached expiration time limit
-        """
-
-        # Calculate timestamp
-        seconds = int(self.conf["misc"]["times"]["expire_pending_hours"] * 3600)
-        created_before = time.mktime(time.gmtime()) - seconds
-        counter = 0
-
-        # Get expired actions and decline them
-        for a in ctb_action.get_actions(
-            atype="givetip",
-            state="pending",
-            created_utc="< " + str(created_before),
-            ctb=self,
-        ):
-            a.expire()
-            counter += 1
-
-        # Done
-        return counter > 0
-
-    def check_inbox(self):
-        """
-        Evaluate new messages in inbox
-        """
-        logger.debug("check_inbox()")
-
-        try:
-
-            # Try to fetch some messages
-            messages = list(
-                ctb_misc.praw_call(
-                    self.reddit.inbox.unread,
-                    limit=self.conf["reddit"]["scan"]["batch_limit"],
-                )
-            )
-            messages.reverse()
-
-            # Process messages
-            for m in messages:
-                # Sometimes messages don't have an author (such as 'you are banned from' message)
-                if not m.author:
-                    logger.info("check_inbox(): ignoring msg with no author")
-                    ctb_misc.praw_call(m.mark_read)
-                    continue
-
-                logger.info(
-                    "check_inbox(): %s from %s",
-                    "comment" if m.was_comment else "message",
-                    m.author.name,
-                )
-
-                # Ignore duplicate messages (sometimes Reddit fails to mark messages as read)
-                if ctb_action.check_action(msg_id=m.id, ctb=self):
-                    logger.warning(
-                        "check_inbox(): duplicate action detected (msg.id %s), ignoring",
-                        m.id,
-                    )
-                    ctb_misc.praw_call(m.mark_read)
-                    continue
-
-                # Ignore self messages
-                if m.author == self.conf["reddit"]["auth"]["username"]:
-                    logger.debug("check_inbox(): ignoring message from self")
-                    ctb_misc.praw_call(m.mark_read)
-                    continue
-
-                # Ignore messages from banned users
-                if m.author and self.conf["reddit"]["banned_users"]:
-                    logger.debug(
-                        "check_inbox(): checking whether user '%s' is banned..."
-                        % m.author
-                    )
-                    u = ctb_user.CtbUser(
-                        name=m.author.name, redditobj=m.author, ctb=self
-                    )
-                    if u.banned:
-                        logger.info(
-                            "check_inbox(): ignoring banned user '%s'" % m.author
-                        )
-                        ctb_misc.praw_call(m.mark_read)
-                        continue
-
-                action = None
-                if m.was_comment:
-                    # Attempt to evaluate as comment / mention
-                    action = ctb_action.eval_comment(m, self)
-                else:
-                    # Attempt to evaluate as inbox message
-                    action = ctb_action.eval_message(m, self)
-
-                # Perform action, if found
-                if action:
-                    logger.info(
-                        "check_inbox(): %s from %s (m.id %s)",
-                        action.type,
-                        action.u_from.name,
-                        m.id,
-                    )
-                    logger.debug("check_inbox(): message body: <%s>", m.body)
-                    action.do()
-                else:
-                    logger.info("check_inbox(): no match")
-                    if self.conf["reddit"]["messages"]["sorry"] and m.subject not in [
-                        "post reply",
-                        "comment reply",
-                    ]:
-                        user = ctb_user.CtbUser(
-                            name=m.author.name, redditobj=m.author, ctb=self
-                        )
-                        tpl = self.jenv.get_template("didnt-understand.tpl")
-                        msg = tpl.render(
-                            user_from=user.name,
-                            what="comment" if m.was_comment else "message",
-                            source_link=ctb_misc.permalink(m),
-                            ctb=self,
-                        )
-                        logger.debug("check_inbox(): %s", msg)
-                        user.tell(
-                            subj="What?",
-                            msg=msg,
-                            msgobj=m if not m.was_comment else None,
-                        )
-
-                # Mark message as read
-                ctb_misc.praw_call(m.mark_read)
-
-        except Exception as e:
-            logger.exception("check_inbox(): %s", e)
-            raise
-        logger.debug("check_inbox() DONE")
-        return True
-
-    def __init__(
-        self,
-        *,
-        init_coin=True,
-        init_db=True,
-        init_reddit=True,
-        self_checks=True,
-    ):
-        """
-        Constructor. Parses configuration file and initializes bot.
-        """
-        logger.info("__init__()...")
-
-        self.coin = None
-        self.runtime = {"regex": []}
-
-        # Configuration
-        self.conf = self.parse_config()
-
-        # Templating with jinja2
-        self.jenv = Environment(
-            trim_blocks=True, loader=PackageLoader("cointipbot", "tpl/jinja2")
-        )
-
-        # Database
-        if init_db:
-            self.db = self.connect_db()
-
-        # Coins
-        if init_coin:
-            self.coin = ctb_coin.CtbCoin(_conf=self.conf["coin"])
-
-        # Reddit
-        if init_reddit:
-            self.reddit = self.connect_reddit()
-            # Regex for Reddit messages
-            ctb_action.init_regex(self)
-
-        # Self-checks
-        if self_checks:
-            self.self_checks()
-
-        logger.info(
-            "__init__(): DONE, batch-limit = %s, sleep-seconds = %s",
-            self.conf["reddit"]["scan"]["batch_limit"],
-            self.conf["misc"]["times"]["sleep_seconds"],
-        )
-
-    def __str__(self):
-        """
-        Return string representation of self
-        """
-        return "<CointipBot: sleepsec={}, batchlim={}".format(
-            self.conf["misc"]["times"]["sleep_seconds"],
-            self.conf["reddit"]["scan"]["batch_limit"],
-        )
-
-    def main(self):
-        """
-        Main loop
-        """
-
-        while True:
-            try:
-                logger.debug("main(): beginning main() iteration")
-
-                # Expire pending tips first. fuck waiting for this shit.
-                self.expire_pending_tips()
-
-                # Check personal messages
-                self.check_inbox()
-
-                # Sleep
-                logger.debug(
-                    "main(): sleeping for %s seconds...",
-                    self.conf["misc"]["times"]["sleep_seconds"],
-                )
-                time.sleep(self.conf["misc"]["times"]["sleep_seconds"])
-
-            except Exception as e:
-                logger.error("main(): exception: %s", e)
-                tb = traceback.format_exc()
-                logger.error("main(): traceback: %s", tb)
-                sys.exit(1)
+                raise Exception(f"self_checks(): {username} is not registered")
+            if user.balance(kind="tip") < 0:
+                raise Exception(f"self_checks(): {username} has a negative balance")

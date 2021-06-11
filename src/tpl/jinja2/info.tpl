@@ -1,6 +1,4 @@
-{% set user_from = action.u_from.name %}
-
-Hello {{ user_from | replace('_', '\_') }}! Here's your account info.
+Hello {{ action.source | replace('_', '\_') }}! Here's your account info.
 
 coin|deposit address|balance
 :---|:---|---:
@@ -10,6 +8,6 @@ coin|deposit address|balance
 __{{ name_fmt }}__|{{ address_fmt }}|__{{ coin_bal_fmt }}__
 &nbsp;|&nbsp;|&nbsp;
 
-Use addresses above to deposit coins into your account.
+Use the address above to deposit coins into your account.
 
 {% include 'footer.tpl' %}

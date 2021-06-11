@@ -27,15 +27,12 @@ sql:
       desc: "Total number of tips given grouped by coin"
       type: table
       query: "SELECT coin, count(*) AS total_tips FROM t_action WHERE type = 'givetip' AND state = 'completed' GROUP BY coin ORDER BY coin"
+  history: "SELECT action, amount, created_at, destination, source, status, subreddit FROM actions WHERE action IN ('tip', 'withdraw') AND (destination=%s OR source=%s) ORDER BY created_at DESC LIMIT 75"
   userstats:
     users: "SELECT username FROM t_users WHERE username IN (SELECT from_user FROM t_action WHERE type = 'givetip') OR username in (SELECT to_user FROM t_action WHERE type = 'givetip') ORDER BY username"
-    coins: 'SELECT DISTINCT coin FROM t_action WHERE coin IS NOT NULL ORDER BY coin'
     history: "SELECT from_user, to_user, created_utc, to_addr, coin_val, coin, state, subreddit, msg_link FROM t_action WHERE type='givetip' AND (from_user=%s OR to_user=%s) ORDER BY created_utc DESC"
     total_tipped_coin: "SELECT SUM(coin_val) AS total_coin FROM t_action WHERE type='givetip' AND state='completed' AND from_user=%s AND coin=%s"
     total_received_coin: "SELECT SUM(coin_val) AS total_coin FROM t_action WHERE type='givetip' AND state='completed' AND to_user=%s AND coin=%s"
-  userhistory:
-    sql: "SELECT type, state, from_user, to_user, created_utc, to_addr, coin_val, coin, subreddit FROM t_action WHERE type IN ('givetip', 'withdraw') AND (from_user=%s OR to_user=%s) ORDER BY created_utc DESC LIMIT %s"
-    limit: 75
   tips:
     sql_set: "SET @rank=0"
     sql_list: "SELECT @rank :=@rank+1 AS num, created_utc, from_user, to_user, coin_val, coin, subreddit, msg_link FROM t_action WHERE type='givetip' AND state='completed' ORDER BY created_utc ASC LIMIT %s"

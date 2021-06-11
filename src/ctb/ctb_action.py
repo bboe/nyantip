@@ -17,364 +17,149 @@
 
 import logging
 import re
+from decimal import Decimal
 
-from . import ctb_misc, ctb_stats, ctb_user
+from . import ctb_stats, ctb_user
+from .util import DummyMessage, log_function
 
 logger = logging.getLogger("ctb.action")
 
 
 class CtbAction(object):
-    """
-    Action class for cointip bot
-    """
-
+    @log_function("action", klass="CtbAction")
     def __init__(
         self,
         *,
-        atype,
-        coin=None,
-        coin_val=None,
+        action,
         ctb,
-        deleted_created_utc=None,
-        deleted_msg_id=None,
-        from_user=None,
+        message,
+        amount=None,
+        destination=None,
+        # deleted_created_utc=None,
+        # deleted_message_id=None,
         keyword=None,
-        msg,
-        subreddit=None,
-        to_addr=None,
-        to_user=None,
+        # subreddit=None,
     ):
-        """
-        Initialize CtbAction object with given parameters and run basic checks
-        """
-        logger.debug("__init__(type=%s)", atype)
 
-        self.type = atype
-
-        self.coin = coin
-        self.coinval = coin_val
-        self.keyword = keyword.lower() if keyword else None
-
-        self.msg = msg
+        self.action = action
+        self.amount = amount
         self.ctb = ctb
-        self.deleted_msg_id = deleted_msg_id
-        self.deleted_created_utc = deleted_created_utc
-
-        self.addr_to = to_addr
-        self.u_to = ctb_user.CtbUser(name=to_user, ctb=ctb) if to_user else None
-        self.u_from = (
-            ctb_user.CtbUser(name=msg.author.name, redditobj=msg.author, ctb=ctb)
-            if (msg and msg.author)
-            else ctb_user.CtbUser(name=from_user, ctb=ctb)
+        if action == "tip":
+            self.destination = ctb_user.CtbUser(ctb=ctb, name=destination)
+        else:
+            self.destination = destination
+        self.message = message
+        self.source = ctb_user.CtbUser(
+            ctb=ctb, name=message.author.name, redditor=message.author
         )
-        self.subreddit = subreddit
-        self.txid = None
+        self.transaction_id = None
 
-        # Do some checks
-        if self.type in ["givetip", "withdraw"]:
-            if not (bool(self.u_to) ^ bool(self.addr_to)):
-                raise Exception(
-                    "__init__(atype=%s, from_user=%s): u_to xor addr_to must be set"
-                    % (self.type, self.u_from.name)
-                )
-            if not (bool(self.coin) or bool(self.keyword)):
-                raise Exception(
-                    "__init__(atype=%s, from_user=%s): coin or keyword must be set"
-                    % (self.type, self.u_from.name)
-                )
-            if not (bool(self.coinval) or bool(self.keyword)):
-                raise Exception(
-                    "__init__(atype=%s, from_user=%s): coinval or keyword must be set"
-                    % (self.type, self.u_from.name)
-                )
+        # self.deleted_message_id = deleted_message_id
+        # self.deleted_created_utc = deleted_created_utc
 
-        # Convert coinval to float, if necesary
-        if isinstance(self.coinval, str) and self.coinval.replace(".", "").isnumeric():
-            self.coinval = float(self.coinval)
+        # self.subreddit = subreddit
 
-        logger.debug("__init__(): %s", self)
-
-        # Determine coinval if keyword is given instead of numeric value
-        if self.type in ["givetip", "withdraw"]:
-            if self.keyword and self.coin and self.coinval is None:
-                # Determine coin value
-                logger.debug(
-                    "__init__(): determining coin value given '%s'",
-                    self.keyword,
-                )
-                val = self.ctb.conf["keywords"][self.keyword]["value"]
-                if isinstance(val, float):
-                    self.coinval = val
-                elif type(val) == str:
-                    logger.debug("__init__(): evaluating '%s'", val)
-                    self.coinval = eval(val)
-                    if not isinstance(self.coinval, float):
-                        logger.warning(
-                            "__init__(atype=%s, from_user=%s): couldn't determine coinval from keyword '%s' (not float)"
-                            % (self.type, self.u_from.name, self.keyword)
-                        )
-                        return None
+        if self.action in ["tip", "withdraw"]:
+            if keyword:
+                assert self.amount is None
+                value = self.ctb.conf["keywords"][keyword.lower()]["value"]
+                if isinstance(value, Decimal):
+                    self.amount = value
                 else:
-                    logger.warning(
-                        "__init__(atype=%s, from_user=%s): couldn't determine coinval from keyword '%s' (not float nor str)"
-                        % (self.type, self.u_from.name, self.keyword)
-                    )
-                    return None
+                    assert isinstance(value, str)
+                    logger.debug(f"__init__(): evaluating {value!r}")
+                    self.amount = eval(value)
+            else:
+                assert isinstance(self.amount, str)
+                assert self.amount.replace(".", "").isnumeric()
+                self.amount = Decimal(self.amount)
 
-            # By this point we should have a proper coinval
-            if not isinstance(self.coinval, float):
-                raise Exception(
-                    "__init__(atype=%s, from_user=%s): coinval isn't determined"
-                    % (self.type, self.u_from.name)
-                )
-
-        if self.type in ["givetip"] and not self.coin:
-            # Couldn't determine coin, abort
-            logger.warning(
-                "__init__(): can't determine coin for user %s",
-                self.u_from.name,
-            )
-            return None
-
-        # Verify coinval is set
-        if self.type in ["givetip", "withdraw"]:
-            assert self.coinval
-
-        logger.debug(
-            "__init__(atype=%s, from_user=%s) DONE",
-            self.type,
-            self.u_from.name,
-        )
+            assert isinstance(self.amount, Decimal)
 
     def __str__(self):
-        """ ""
-        Return string representation of self
-        """
-        me = "<CtbAction: type=%s, msg=%s, from_user=%s, to_user=%s, to_addr=%s, coin=%s, coin_val=%s, subreddit=%s, ctb=%s>"
-        me = me % (
-            self.type,
-            None if self.msg is None else self.msg.body,
-            self.u_from,
-            self.u_to,
-            self.addr_to,
-            self.coin,
-            self.coinval,
-            self.subreddit,
-            self.ctb,
+        return f"<CtbAction: action={self.action}, amount={self.amount} destination={self.destination} source={self.message.author}>"
+
+    @property
+    def _amount_formatted(self):
+        return self._format_coin(self.amount)
+
+    def _fail(self, subject, template, **template_args):
+        response = self.ctb.jenv.get_template(template).render(
+            ctb=self.ctb, message=self.message, **template_args
         )
-        return me
+        self.source.tell(body=response, message=self.message, subject=subject)
+        self.save(status="failed")
+        return False
 
-    def save(self, state=None):
-        """
-        Save action to database
-        """
-        logger.debug("save(%s)", state)
+    def _format_coin(self, quantity):
+        return f"{quantity:f} {self.ctb.conf['coin']['name']}"
 
-        # Make sure no negative values exist
-        if self.coinval and self.coinval < 0.0:
-            self.coinval = 0.0
-
-        realutc = None
-        realmsgid = None
-
-        if self.msg:
-            realmsgid = self.msg.id
-            realutc = self.msg.created_utc
-        else:
-            realmsgid = self.deleted_msg_id
-            realutc = self.deleted_created_utc
-
-        conn = self.ctb.db
-        sql = "REPLACE INTO t_action (type, state, created_utc, from_user, to_user, to_addr, coin_val, txid, coin, subreddit, msg_id, msg_link)"
-        sql += " values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-
-        try:
-            mysqlexec = conn.execute(
-                sql,
-                (
-                    self.type,
-                    state,
-                    realutc,
-                    self.u_from.name.lower(),
-                    self.u_to.name.lower() if self.u_to else None,
-                    self.addr_to,
-                    self.coinval,
-                    self.txid,
-                    self.coin,
-                    self.subreddit,
-                    realmsgid,
-                    ctb_misc.permalink(self.msg),
-                ),
-            )
-            if mysqlexec.rowcount <= 0:
-                raise Exception("query didn't affect any rows")
-        except Exception as e:
-            logger.error(
-                "save(%s): error executing query <%s>: %s",
-                state,
-                sql
-                % (
-                    self.type,
-                    state,
-                    self.msg.created_utc if self.msg else None,
-                    self.u_from.name.lower(),
-                    self.u_to.name.lower() if self.u_to else None,
-                    self.addr_to,
-                    self.coinval,
-                    self.txid,
-                    self.coin,
-                    self.subreddit,
-                    realmsgid,
-                    ctb_misc.permalink(self.msg),
-                ),
-                e,
-            )
-            raise
-
-        logger.debug("save() DONE")
-        return True
-
-    def do(self):
-        """
-        Call appropriate function depending on action type
-        """
-        logger.debug("do()")
-
-        if not self.ctb.conf["regex"]["actions"][self.type]["enabled"]:
-            msg = self.ctb.jenv.get_template("command-disabled.tpl").render(
-                a=self, ctb=self.ctb
-            )
-            logger.info("do(): action %s is disabled", self.type)
-            ctb_misc.praw_call(self.msg.reply, msg)
-            return False
-
-        if self.type == "accept":
-            if self.accept():
-                self.type = "info"
-                return self.info()
-            else:
-                return False
-
-        if self.type == "decline":
-            return self.decline()
-
-        if self.type == "givetip":
-            result = self.givetip()
-            ctb_stats.update_user_stats(ctb=self.ctb, username=self.u_from.name)
-            if self.u_to:
-                ctb_stats.update_user_stats(ctb=self.ctb, username=self.u_to.name)
-            return result
-
-        if self.type == "history":
-            return self.history()
-
-        if self.type == "info":
-            return self.info()
-
-        if self.type == "register":
-            if self.register():
-                self.type = "info"
-                return self.info()
-            else:
-                return False
-
-        if self.type == "withdraw":
-            return self.givetip()
-
-        logger.debug("do() DONE")
-        return None
-
-    def history(self):
-        """
-        Provide user with transaction history
-        """
-
-        # Generate history array
-        history = []
-        sql_history = self.ctb.conf["db"]["sql"]["userhistory"]["sql"]
-        limit = int(self.ctb.conf["db"]["sql"]["userhistory"]["limit"])
-
-        mysqlexec = self.ctb.db.execute(
-            sql_history, (self.u_from.name.lower(), self.u_from.name.lower(), limit)
-        )
-        for m in mysqlexec:
-            history_entry = []
-            for k in mysqlexec.keys():
-                history_entry.append(
-                    ctb_stats.format_value(
-                        m, k, self.u_from.name.lower(), self.ctb, compact=True
-                    )
-                )
-            history.append(history_entry)
-
-        # Send message to user
-        msg = self.ctb.jenv.get_template("history.tpl").render(
-            history=history, keys=mysqlexec.keys(), limit=limit, a=self, ctb=self.ctb
-        )
-        logger.debug("history(): %s", msg)
-        ctb_misc.praw_call(self.msg.reply, msg)
-        return True
-
-    def accept(self):
-        """
-        Accept pending tip
-        """
+    def action_accept(self):
         logger.debug("accept()")
 
         # Register as new user if necessary
-        if not self.u_from.is_registered():
-            if not self.u_from.register():
-                logger.warning("accept(): self.u_from.register() failed")
-                self.save("failed")
+        if not self.source.is_registered():
+            if not self.source.register():
+                logger.warning("accept(): self.source.register() failed")
+                self.save(status="failed")
                 return False
 
         # Get pending actions
         actions = get_actions(
-            atype="givetip", to_user=self.u_from.name, state="pending", ctb=self.ctb
+            atype="tip", to_user=self.source, state="pending", ctb=self.ctb
         )
         if actions:
             # Accept each action
             for a in actions:
-                a.givetip(is_pending=True)
+
+                logger.info(
+                    "tip(): moving %f from %s to %s...",
+                    self.amount,
+                    self.ctb.conf["reddit"]["auth"]["username"],
+                    self.u_to,
+                )
+                res = self.coin.sendtouser(
+                    _userfrom=self.ctb.conf["reddit"]["auth"]["username"],
+                    _userto=self.u_to,
+                    _amount=self.amount,
+                )
+
                 # Update user stats
-                ctb_stats.update_user_stats(ctb=a.ctb, username=a.u_from.name)
-                ctb_stats.update_user_stats(ctb=a.ctb, username=a.u_to.name)
+                ctb_stats.update_user_stats(ctb=a.ctb, username=a.source)
+                ctb_stats.update_user_stats(ctb=a.ctb, username=a.u_to)
         else:
             # No pending actions found, reply with error message
-            msg = self.ctb.jenv.get_template("no-pending-tips.tpl").render(
-                user_from=self.u_from.name, a=self, ctb=self.ctb
+            message = self.ctb.jenv.get_template("no-pending-tips.tpl").render(
+                user_from=self.source, a=self, ctb=self.ctb
             )
-            logger.debug("accept(): %s", msg)
-            ctb_misc.praw_call(self.msg.reply, msg)
+            logger.debug("accept(): %s", message)
+            ctb_misc.praw_call(self.message.reply, message)
 
         # Save action to database
-        self.save("completed")
+        self.save(status="completed")
 
         logger.debug("accept() DONE")
         return True
 
-    def decline(self):
-        """
-        Decline pending tips
-        """
+    def action_decline(self):
         logger.debug("decline()")
 
         actions = get_actions(
-            atype="givetip", to_user=self.u_from.name, state="pending", ctb=self.ctb
+            atype="tip", to_user=self.source, state="pending", ctb=self.ctb
         )
         if actions:
             for a in actions:
-                # Move coins back into a.u_from account
+                # Move coins back into a.source account
                 logger.info(
                     "decline(): moving %s %s from %s to %s",
                     a.coinval,
                     a.coin.conf["name"].upper(),
                     self.ctb.conf["reddit"]["auth"]["username"],
-                    a.u_from.name,
+                    a.source,
                 )
                 if not self.ctb.coins[a.coin].sendtouser(
                     _userfrom=self.ctb.conf["reddit"]["auth"]["username"],
-                    _userto=a.u_from.name,
+                    _userto=a.source,
                     _amount=a.coinval,
                 ):
                     raise Exception("decline(): failed to sendtouser()")
@@ -383,42 +168,196 @@ class CtbAction(object):
                 a.save("declined")
 
                 # Update user stats
-                ctb_stats.update_user_stats(ctb=a.ctb, username=a.u_from.name)
-                ctb_stats.update_user_stats(ctb=a.ctb, username=a.u_to.name)
+                ctb_stats.update_user_stats(ctb=a.ctb, username=a.source)
+                ctb_stats.update_user_stats(ctb=a.ctb, username=a.u_to)
 
                 # Respond to tip comment
-                msg = self.ctb.jenv.get_template("confirmation.tpl").render(
+                message = self.ctb.jenv.get_template("confirmation.tpl").render(
+                    action=action.action,
+                    ctb=action.ctb,
+                    message=action.message,
                     title="Declined",
-                    a=a,
-                    ctb=a.ctb,
-                    source_link=ctb_misc.permalink(a.msg),
                 )
-                logger.debug("decline(): " + msg)
-                if self.ctb.conf["reddit"]["messages"]["declined"]:
-                    if not ctb_misc.praw_call(a.msg.reply, msg):
-                        a.u_from.tell(subj="+tip declined", msg=msg)
-                else:
-                    a.u_from.tell(subj="+tip declined", msg=msg)
+                logger.debug("decline(): " + message)
+                a.source.tell(subject="tip declined", message=message)
 
-            # Notify self.u_from
-            msg = self.ctb.jenv.get_template("pending-tips-declined.tpl").render(
-                user_from=self.u_from.name, ctb=self.ctb
+            # Notify self.source
+            message = self.ctb.jenv.get_template("pending-tips-declined.tpl").render(
+                user_from=self.source, ctb=self.ctb
             )
-            logger.debug("decline(): %s", msg)
-            ctb_misc.praw_call(self.msg.reply, msg)
+            logger.debug("decline(): %s", message)
+            ctb_misc.praw_call(self.message.reply, message)
 
         else:
-            msg = self.ctb.jenv.get_template("no-pending-tips.tpl").render(
-                user_from=self.u_from.name, ctb=self.ctb
+            message = self.ctb.jenv.get_template("no-pending-tips.tpl").render(
+                user_from=self.source, ctb=self.ctb
             )
-            logger.debug("decline(): %s", msg)
-            ctb_misc.praw_call(self.msg.reply, msg)
+            logger.debug("decline(): %s", message)
+            ctb_misc.praw_call(self.message.reply, message)
 
         # Save action to database
-        self.save("completed")
+        self.save(status="completed")
 
         logger.debug("decline() DONE")
+
+    def action_history(self):
+        history = []
+
+        response = self.ctb.db.execute(
+            self.ctb.conf["db"]["sql"]["history"], (self.destination, self.source)
+        )
+        for row in response:
+            history_entry = []
+            for key in response.keys():
+                history_entry.append(
+                    ctb_stats.format_value(
+                        row, key, self.source, self.ctb, compact=True
+                    )
+                )
+            history.append(history_entry)
+
+        if history:
+            response = self.ctb.jenv.get_template("history.tpl").render(
+                ctb=self.ctb,
+                history=history,
+                keys=response.keys(),
+                message=self.message,
+            )
+        else:
+            response = self.ctb.jenv.get_template("history-empty.tpl").render(
+                ctb=self.ctb, message=self.message
+            )
+        logger.debug(f"history(): {response}")
+        self.message.reply(response)
+
+    @log_function(klass="CtbAction")
+    def action_info(self):
+        if not self.source.is_registered():
+            response = self.ctb.jenv.get_template("not-registered.tpl").render(
+                ctb=self.ctb, message=self.message
+            )
+            self.source.tell(body=response, message=self.message, subject="info failed")
+            return False
+
+        balance = self.ctb.coin.balance(
+            minconf=self.ctb.coin.conf["minconf"]["tip"],
+            user=self.source.name,
+        )
+        row = self.ctb.db.execute(
+            "SELECT address FROM users WHERE username = %s", self.source
+        ).fetchone()
+
+        response = self.ctb.jenv.get_template("info.tpl").render(
+            action=self,
+            address=row["address"],
+            balance=balance,
+            coin=self.ctb.coin,
+            ctb=self.ctb,
+            message=self.message,
+            misc_conf=self.ctb.conf["misc"],
+        )
+        self.message.reply(response)
+
+        # Save action to database
+        self.save(status="completed")
+
         return True
+
+    @log_function(klass="CtbAction")
+    def action_register(self):
+        if self.source.is_registered():
+            logger.debug(
+                f"register({self.source}): user already exists; ignoring request"
+            )
+            self.save(status="failed")
+        else:
+            self.source.register()
+            self.save(status="completed")
+        self.action = "info"
+        self.action_info()
+
+    @log_function(klass="CtbAction")
+    def action_tip(self):
+        assert self.destination
+        if not self.validate():
+            return
+
+        try:
+            self.ctb.coin.send(
+                amount=self.amount,
+                destination=self.destination,
+                source=self.source,
+            )
+        except Exception:
+            logger.exception("action_tip(): failed")
+            return self._fail(
+                "tip failed",
+                "tip-went-wrong.tpl",
+                action_name=self.action,
+                amount_formatted=self._amount_formatted,
+                destination=self.destination,
+                to_address=False,
+            )
+
+        self.save(status="completed")
+
+        response = self.ctb.jenv.get_template("confirmation.tpl").render(
+            amount_formatted=self._amount_formatted,
+            ctb=self.ctb,
+            destination=self.destination,
+            message=self.message,
+            title="verified^nyan",
+            to_address=False,
+            transaction_id=None,
+        )
+        self.source.tell(body=response, message=self.message, subject="tip succeeded")
+
+        dummy_message = DummyMessage(self.destination, self.message.context)
+        response = self.ctb.jenv.get_template("tip-received.tpl").render(
+            amount_formatted=self._amount_formatted,
+            ctb=self.ctb,
+            dummy_message=dummy_message,
+            source=self.message.author,
+        )
+        self.destination.tell(body=response, subject="tip received")
+
+    @log_function(klass="CtbAction")
+    def action_withdraw(self):
+        assert self.destination
+        if not self.validate():
+            return
+
+        # TODO
+        # Use a move if the address belongs to the local wallet
+
+        try:
+            self.transaction_id = self.ctb.coin.transfer(
+                address=self.destination, amount=self.amount, source=self.source.name
+            )
+        except Exception:
+            logger.exception("action_withdraw(): failed")
+            return self._fail(
+                "withdraw failed",
+                "tip-went-wrong.tpl",
+                action_name=self.action,
+                amount_formatted=self._amount_formatted,
+                destination=self.destination,
+                to_address=True,
+            )
+
+        self.save(status="completed")
+        response = self.ctb.jenv.get_template("confirmation.tpl").render(
+            amount_formatted=self._amount_formatted,
+            ctb=self.ctb,
+            destination=self.destination,
+            message=self.message,
+            title="verified^nyan",
+            to_address=True,
+            transaction_id=self.transaction_id,
+        )
+        self.source.tell(
+            body=response, message=self.message, subject="withdraw succeeded"
+        )
 
     def expire(self):
         """
@@ -426,581 +365,246 @@ class CtbAction(object):
         """
         logger.debug("expire()")
 
-        # Move coins back into self.u_from account
+        # Move coins back into self.source account
         logger.info(
             "expire(): moving %s %s from %s to %s",
-            self.coinval,
+            self.amount,
             self.coin.conf["name"].upper(),
             self.ctb.conf["reddit"]["auth"]["username"],
-            self.u_from.name,
+            self.source,
         )
         if not self.coin.sendtouser(
             _userfrom=self.ctb.conf["reddit"]["auth"]["username"],
-            _userto=self.u_from.name,
-            _amount=self.coinval,
+            _userto=self.source,
+            _amount=self.amount,
         ):
             raise Exception("expire(): sendtouser() failed")
 
         # Save transaction as expired
-        self.save("expired")
+        self.save(status="expired")
 
         # Update user stats
-        ctb_stats.update_user_stats(ctb=self.ctb, username=self.u_from.name)
-        ctb_stats.update_user_stats(ctb=self.ctb, username=self.u_to.name)
+        ctb_stats.update_user_stats(ctb=self.ctb, username=self.source)
+        ctb_stats.update_user_stats(ctb=self.ctb, username=self.u_to)
 
-        # Respond to tip comment
-        msg = self.ctb.jenv.get_template("confirmation.tpl").render(
-            title="Expired",
-            a=self,
-            ctb=self.ctb,
-            source_link=ctb_misc.permalink(self.msg),
-        )
-        logger.debug("expire(): " + msg)
-        if self.ctb.conf["reddit"]["messages"]["expired"]:
-            if not ctb_misc.praw_call(self.msg.reply, msg):
-                self.u_from.tell(subj="+tip expired", msg=msg)
-        else:
-            self.u_from.tell(subj="+tip expired", msg=msg)
-
-        logger.debug("expire() DONE")
-        return True
-
-    def validate(self, is_pending=False):
-        """
-        Validate an action
-        """
-        logger.debug("validate()")
-
-        if self.type in ["givetip", "withdraw"]:
-            # Check if u_from has registered
-            if not self.u_from.is_registered():
-                msg = self.ctb.jenv.get_template("not-registered.tpl").render(
-                    a=self, ctb=self.ctb
-                )
-                logger.debug("validate(): %s", msg)
-                self.u_from.tell(subj="+tip failed", msg=msg)
-                self.save("failed")
-                return False
-
-            if self.u_to and not self.u_to.is_on_reddit():
-                msg = self.ctb.jenv.get_template("not-on-reddit.tpl").render(
-                    a=self, ctb=self.ctb
-                )
-                logger.debug("validate(): %s", msg)
-                self.u_from.tell(subj="+tip failed", msg=msg)
-                self.save("failed")
-                return False
-
-            # Verify that coin type is set
-            if not self.coin:
-                msg = self.ctb.jenv.get_template("no-coin-balances.tpl").render(
-                    a=self, ctb=self.ctb
-                )
-                logger.debug("validate(): %s", msg)
-                self.u_from.tell(subj="+tip failed", msg=msg)
-                self.save("failed")
-                return False
-
-            # Verify that u_from has coin address
-            if not self.u_from.get_addr():
-                logger.error(
-                    "validate(): user %s doesn't have an address",
-                    self.u_from.name,
-                )
-                self.save("failed")
-                raise Exception
-
-            # Verify minimum transaction size
-            txkind = "givetip" if self.u_to else "withdraw"
-            if self.coinval < self.coin.conf["txmin"][txkind]:
-                msg = self.ctb.jenv.get_template("tip-below-minimum.tpl").render(
-                    min_value=self.coin.conf["txmin"][txkind],
-                    a=self,
-                    ctb=self.ctb,
-                )
-                logger.debug("validate(): " + msg)
-                self.u_from.tell(subj="+tip failed", msg=msg)
-                self.save("failed")
-                return False
-
-            # Verify balance (unless it's a pending transaction being processed, in which case coins have been already moved to pending acct)
-            if self.u_to and not is_pending:
-                # Tip to user (requires less confirmations)
-                balance_avail = self.u_from.get_balance(kind="givetip")
-                if not (
-                    balance_avail > self.coinval
-                    or abs(balance_avail - self.coinval) < 0.000001
-                ):
-                    msg = self.ctb.jenv.get_template("tip-low-balance.tpl").render(
-                        balance=balance_avail, action_name="tip", a=self, ctb=self.ctb
-                    )
-                    logger.debug("validate(): " + msg)
-                    self.u_from.tell(subj="+tip failed", msg=msg)
-                    self.save("failed")
-                    return False
-            elif self.addr_to:
-                # Tip/withdrawal to address (requires more confirmations)
-                balance_avail = self.u_from.get_balance(kind="withdraw")
-                balance_need = self.coinval
-                # Add mandatory network transaction fee
-                balance_need += self.coin.conf["txfee"]
-                if not (
-                    balance_avail > balance_need
-                    or abs(balance_avail - balance_need) < 0.000001
-                ):
-                    msg = self.ctb.jenv.get_template("tip-low-balance.tpl").render(
-                        balance=balance_avail,
-                        action_name="withdraw",
-                        a=self,
-                        ctb=self.ctb,
-                    )
-                    logger.debug("validate(): " + msg)
-                    self.u_from.tell(subj="+tip failed", msg=msg)
-                    self.save("failed")
-                    return False
-
-            # Check if u_to has any pending coin tips from u_from
-            if self.u_to and not is_pending:
-                if check_action(
-                    atype="givetip",
-                    state="pending",
-                    to_user=self.u_to.name,
-                    from_user=self.u_from.name,
-                    coin=self.coin,
-                    ctb=self.ctb,
-                ):
-                    # Send notice to u_from
-                    msg = self.ctb.jenv.get_template("tip-already-pending.tpl").render(
-                        a=self, ctb=self.ctb
-                    )
-                    logger.debug("validate(): " + msg)
-                    self.u_from.tell(subj="+tip failed", msg=msg)
-                    self.save("failed")
-                    return False
-
-            # Check if u_to has registered, if applicable
-            if self.u_to and not self.u_to.is_registered():
-                # u_to not registered:
-                # - move tip into pending account
-                # - save action as 'pending'
-                # - notify u_to to accept tip
-
-                # Move coins into pending account
-                minconf = self.coin.conf["minconf"]["givetip"]
-                logger.info(
-                    "validate(): moving %s %s from %s to %s (minconf=%s)...",
-                    self.coinval,
-                    self.coin.conf["name"].upper(),
-                    self.u_from.name,
-                    self.ctb.conf["reddit"]["auth"]["username"],
-                    minconf,
-                )
-                if not self.coin.sendtouser(
-                    _userfrom=self.u_from.name,
-                    _userto=self.ctb.conf["reddit"]["auth"]["username"],
-                    _amount=self.coinval,
-                    _minconf=minconf,
-                ):
-                    raise Exception("validate(): sendtouser() failed")
-
-                # Save action as pending
-                self.save("pending")
-
-                # Respond to tip comment
-                msg = self.ctb.jenv.get_template("confirmation.tpl").render(
-                    title="verified^nyan", a=self, ctb=self.ctb
-                )
-                logger.debug("validate(): " + msg)
-                if self.ctb.conf["reddit"]["messages"]["verified"]:
-                    if not ctb_misc.praw_call(self.msg.reply, msg):
-                        self.u_from.tell(subj="+tip pending +accept", msg=msg)
-                else:
-                    self.u_from.tell(subj="+tip pending +accept", msg=msg)
-
-                # Send notice to u_to
-                msg = self.ctb.jenv.get_template("tip-incoming.tpl").render(
-                    a=self, ctb=self.ctb
-                )
-                logger.debug("validate(): %s", msg)
-                self.u_to.tell(subj="+tip pending", msg=msg)
-
-                # Action saved as 'pending', return false to avoid processing it further
-                return False
-
-            # Validate addr_to, if applicable
-            if self.addr_to:
-                if not self.coin.validateaddr(_addr=self.addr_to):
-                    msg = self.ctb.jenv.get_template("address-invalid.tpl").render(
-                        a=self, ctb=self.ctb
-                    )
-                    logger.debug("validate(): " + msg)
-                    self.u_from.tell(subj="+tip failed", msg=msg)
-                    self.save("failed")
-                    return False
-
-        # Action is valid
-        logger.debug("validate() DONE")
-        return True
-
-    def givetip(self, is_pending=False):
-        """
-        Initiate tip
-        """
-        logger.debug("givetip()")
-
-        if self.msg:
-            my_id = self.msg.id
-        else:
-            my_id = self.deleted_msg_id
-
-        # Check if action has been processed
-        if check_action(
-            atype=self.type, msg_id=my_id, ctb=self.ctb, is_pending=is_pending
-        ):
-            # Found action in database, returning
-            logger.warning(
-                "givetipt(): duplicate action %s (msg.id %s), ignoring",
-                self.type,
-                my_id,
-            )
-            return False
-
-        # Validate action
-        if not self.validate(is_pending=is_pending):
-            # Couldn't validate action, returning
-            return False
-
-        if self.u_to:
-            # Process tip to user
-
-            res = False
-            if is_pending:
-                # This is accept() of pending transaction, so move coins from pending account to receiver
-                logger.info(
-                    "givetip(): moving %f from %s to %s...",
-                    self.coinval,
-                    self.ctb.conf["reddit"]["auth"]["username"],
-                    self.u_to.name,
-                )
-                res = self.coin.sendtouser(
-                    _userfrom=self.ctb.conf["reddit"]["auth"]["username"],
-                    _userto=self.u_to.name,
-                    _amount=self.coinval,
-                )
-            else:
-                # This is not accept() of pending transaction, so move coins from tipper to receiver
-                logger.info(
-                    "givetip(): moving %f from %s to %s...",
-                    self.coinval,
-                    self.u_from.name,
-                    self.u_to.name,
-                )
-                res = self.coin.sendtouser(
-                    _userfrom=self.u_from.name,
-                    _userto=self.u_to.name,
-                    _amount=self.coinval,
-                )
-
-            if not res:
-                # Transaction failed
-                self.save("failed")
-
-                # Send notice to u_from
-                msg = self.ctb.jenv.get_template("tip-went-wrong.tpl").render(
-                    a=self, ctb=self.ctb
-                )
-                self.u_from.tell(subj="+tip failed", msg=msg)
-
-                raise Exception("givetip(): sendtouser() failed")
-
-            # Transaction succeeded
-            self.save("completed")
-
-            # Send confirmation to u_to
-            msg = self.ctb.jenv.get_template("tip-received.tpl").render(
-                a=self, ctb=self.ctb
-            )
-            logger.debug("givetip(): " + msg)
-            self.u_to.tell(subj="+tip received", msg=msg)
-
-            # Send confirmation to u_from
-            msg = self.ctb.jenv.get_template("tip-sent.tpl").render(
-                a=self, ctb=self.ctb
-            )
-            logger.debug("givetip(): " + msg)
-            self.u_from.tell(subj="+tip sent", msg=msg)
-
-            # This is not accept() of pending transaction, so post verification comment
-            if not is_pending:
-                msg = self.ctb.jenv.get_template("confirmation.tpl").render(
-                    title="verified^nyan", a=self, ctb=self.ctb
-                )
-                logger.debug("givetip(): " + msg)
-                if self.ctb.conf["reddit"]["messages"]["verified"]:
-                    if not ctb_misc.praw_call(self.msg.reply, msg):
-                        self.u_from.tell(subj="+tip succeeded", msg=msg)
-                else:
-                    self.u_from.tell(subj="+tip succeeded", msg=msg)
-
-            logger.debug("givetip() DONE")
-            return True
-
-        elif self.addr_to:
-            # Process tip to address
-            try:
-                logger.info(
-                    "givetip(): sending %f to %s...",
-                    self.coinval,
-                    self.addr_to,
-                )
-                self.txid = self.coin.sendtoaddr(
-                    _userfrom=self.u_from.name,
-                    _addrto=self.addr_to,
-                    _amount=self.coinval,
-                )
-
-            except Exception:
-
-                # Transaction failed
-                self.save("failed")
-                logger.error("givetip(): sendtoaddr() failed")
-
-                # Send notice to u_from
-                msg = self.ctb.jenv.get_template("tip-went-wrong.tpl").render(
-                    a=self, ctb=self.ctb
-                )
-                self.u_from.tell(subj="+tip failed", msg=msg)
-
-                raise
-
-            # Transaction succeeded
-            self.save("completed")
-
-            # Post verification comment
-            msg = self.ctb.jenv.get_template("confirmation.tpl").render(
-                title="verified^nyan", a=self, ctb=self.ctb
-            )
-            logger.debug("givetip(): " + msg)
-            if self.ctb.conf["reddit"]["messages"]["verified"]:
-                if not ctb_misc.praw_call(self.msg.reply, msg):
-                    self.u_from.tell(subj="+tip succeeded", msg=msg)
-            else:
-                self.u_from.tell(subj="+tip succeeded", msg=msg)
-
-            logger.debug("givetip() DONE")
-            return True
-
-        logger.debug("givetip() DONE")
-        return None
-
-    def info(self):
-        """
-        Send user info about account
-        """
-        logger.debug("info()")
-
-        # Check if user exists
-        if not self.u_from.is_registered():
-            msg = self.ctb.jenv.get_template("not-registered.tpl").render(
-                a=self, ctb=self.ctb
-            )
-            self.u_from.tell(subj="+info failed", msg=msg)
-            return False
-
-        # Get coin balances
-        try:
-            # Get tip balance
-            balance = self.ctb.coin.getbalance(
-                _user=self.u_from.name,
-                _minconf=self.ctb.coin.conf["minconf"]["givetip"],
-            )
-        except Exception as exception:
-            logger.error(
-                "info(%s): error retrieving %s coininfo: %s",
-                self.u_from.name,
-                self.ctb.coin,
-                exception,
-            )
-            raise
-        sql = "SELECT address FROM t_addrs WHERE username = '%s' AND coin = '%s'" % (
-            self.u_from.name.lower(),
-            self.ctb.coin.conf["unit"],
-        )
-        mysqlrow = self.ctb.db.execute(sql).fetchone()
-        if not mysqlrow:
-            raise Exception("info(%s): no result from <%s>" % (self.u_from.name, sql))
-
-        # Format and send message
-        msg = self.ctb.jenv.get_template("info.tpl").render(
+        response = self.ctb.jenv.get_template("confirmation.tpl").render(
             action=self,
-            address=mysqlrow["address"],
-            balance=balance,
-            coin=self.ctb.coin,
             ctb=self.ctb,
-            misc_conf=self.ctb.conf["misc"],
+            message=self.message,
+            title="Expired",
         )
-        ctb_misc.praw_call(self.msg.reply, msg)
+        self.source.tell(body=response, message=self.message, subject="tip expired")
 
-        # Save action to database
-        self.save("completed")
+    @log_function(klass="CtbAction")
+    def perform(self):
+        if self.action == "accept":
+            if self.action_accept():
+                self.action = "info"
+                self.action_info()
+        elif self.action == "decline":
+            self.action_decline()
+        elif self.action == "history":
+            self.action_history()
+        elif self.action == "info":
+            self.action_info()
+        elif self.action == "register":
+            self.action_register()
+        elif self.action == "tip":
+            self.action_tip()
+            # ctb_stats.update_user_stats(ctb=self.ctb, username=self.source)
+            # ctb_stats.update_user_stats(ctb=self.ctb, username=self.destination)
+        else:
+            assert self.action == "withdraw"
+            self.action_withdraw()
 
-        logger.debug("info() DONE")
+    @log_function("status", klass="CtbAction")
+    def save(self, *, status):
+        assert self.amount is None or self.amount > 0
+
+        #     realmessageid = self.deleted_message_id
+        #     realutc = self.deleted_created_utc
+
+        result = self.ctb.db.execute(
+            "REPLACE INTO actions (action, amount, destination, message_id, source, status, transaction_id) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (
+                self.action,
+                self.amount,
+                self.destination,
+                self.message.id,
+                self.source,
+                status,
+                self.transaction_id,
+            ),
+        )
+        assert result.rowcount == 1
+
+    @log_function(klass="CtbAction", log_response=True)
+    def validate(self):
+        subject = f"{self.action} failed"
+
+        # First see if the author is registered
+        if not self.source.is_registered():
+            return self._fail(subject, "not-registered.tpl")
+
+        # Second ensure the amount is larger than the necessary minimum
+        minimum = self.ctb.coin.conf[f"minimum_{self.action}"]
+        if self.amount < minimum:
+            return self._fail(
+                subject,
+                "tip-below-minimum.tpl",
+                action_name=self.action,
+                amount_formatted=self._amount_formatted,
+                minimum_formatted=self._format_coin(minimum),
+            )
+
+        # Then verify they have sufficient balance
+        balance = self.source.balance(kind=self.action)
+        balance_needed = self.amount
+        if self.action == "withdraw":
+            balance_needed += self.ctb.coin.conf["transaction_fee"]
+        if balance < balance_needed:
+            return self._fail(
+                subject,
+                "tip-low-balance.tpl",
+                action_name=self.action,
+                balance_formatted=self._format_coin(balance),
+                balance_needed_formatted=self._format_coin(balance_needed),
+            )
+
+        if self.action == "tip":
+            if self.source == self.destination:
+                return self._fail(subject, "cant-send.tpl", destination="yourself")
+
+            if self.ctb.bot == self.destination:
+                return self._fail(subject, "cant-send.tpl", destination="the tip bot")
+
+            if not self.destination.is_redditor():
+                return self._fail(
+                    subject, "not-on-reddit.tpl", destination=self.destination
+                )
+
+            if check_action(
+                action="tip",
+                ctb=self.ctb,
+                destination=self.destination,
+                source=self.source,
+                status="pending",
+            ):
+                return self._fail(
+                    subject, "tip-already-pending.tpl", destination=self.destination
+                )
+
+            if not self.destination.is_registered():
+                # Perform a pending transfer to escrow
+                self.ctb.coin.send(
+                    amount=self.amount,
+                    destination=self.ctb.bot,
+                    source=self.source,
+                )
+                self.save(status="pending")
+
+                response = self.ctb.jenv.get_template("confirmation.tpl").render(
+                    amount_formatted=self._amount_formatted,
+                    ctb=self.ctb,
+                    destination=self.destination,
+                    message=self.message,
+                    to_address=False,
+                    title="verified^nyan",
+                )
+                self.source.tell(
+                    body=response,
+                    message=self.message,
+                    reply_to_comment=True,
+                    subject="tip pending accept",
+                )
+
+                dummy_message = DummyMessage(self.destination, self.message.context)
+                response = self.ctb.jenv.get_template("tip-pending.tpl").render(
+                    amount_formatted=self._amount_formatted,
+                    ctb=self.ctb,
+                    dummy_message=dummy_message,
+                    source=self.message.author,
+                )
+                self.destination.tell(body=response, subject="tip pending")
+                return False
+        elif not self.ctb.coin.validate(address=self.destination):
+            return self._fail(subject, "address-invalid.tpl")
         return True
 
-    def register(self):
-        """
-        Register a new user
-        """
-        logger.debug("register()")
 
-        # If user exists, do nothing
-        if self.u_from.is_registered():
-            logger.debug(
-                "register(%s): user already exists; ignoring request",
-                self.u_from.name,
-            )
-            self.save("failed")
-            return True
-
-        result = self.u_from.register()
-
-        # Save action to database
-        self.save("completed")
-
-        logger.debug("register() DONE")
-        return result
-
-
+@log_function()
 def init_regex(ctb):
     """
     Initialize regular expressions used to match messages and comments
     """
-    logger.debug("init_regex()")
     ctb.runtime["regex"] = []
 
     for action, action_conf in ctb.conf["regex"]["actions"].items():
-        if isinstance(action_conf["regex"], str):
-            # Add simple message actions (info, register, accept, decline, history)
+        if isinstance(action_conf, str):
+            expression = action_conf
             entry = {
                 "action": action,
-                "coin": None,
-                "keyword": None,
-                "regex": re.compile(action_conf["regex"], re.IGNORECASE | re.DOTALL),
-                "rg_address": 0,
-                "rg_amount": 0,
-                "rg_keyword": 0,
-                "rg_to_user": 0,
+                "regex": re.compile(action_conf, re.IGNORECASE | re.DOTALL),
             }
-            logger.debug(
-                "ADDED REGEX for %s: %s", entry["action"], entry["regex"].pattern
-            )
+            entry["regex"] = re.compile(expression, re.IGNORECASE | re.DOTALL)
+            logger.debug(f"ADDED REGEX for {action}: {entry['regex'].pattern}")
             ctb.runtime["regex"].append(entry)
-        else:
-            # Add non-simple actions (givetip, withdraw)
-            for _, regex in sorted(action_conf["regex"].items()):
-                rval1 = regex["value"]
-                rval1 = rval1.replace(
-                    "{REGEX_TIP_INIT}", ctb.conf["regex"]["values"]["tip_init"]["regex"]
-                )
-                rval1 = rval1.replace(
-                    "{REGEX_USER}", ctb.conf["regex"]["values"]["username"]["regex"]
-                )
-                rval1 = rval1.replace(
-                    "{REGEX_AMOUNT}", ctb.conf["regex"]["values"]["amount"]["regex"]
-                )
-                rval1 = rval1.replace(
-                    "{REGEX_KEYWORD}", ctb.conf["regex"]["values"]["keywords"]["regex"]
-                )
+            continue
 
-                entry = {
-                    "action": action,
-                    "coin": None,
-                    "rg_address": regex["rg_address"],
-                    "rg_amount": regex["rg_amount"],
-                    "rg_keyword": regex["rg_keyword"],
-                    "rg_to_user": regex["rg_to_user"],
-                }
+        for _, regex in sorted(action_conf["regex"].items()):
+            expression = (
+                regex["value"]
+                .replace("{REGEX_ADDRESS}", ctb.coin.conf["regex"])
+                .replace("{REGEX_AMOUNT}", ctb.conf["regex"]["values"]["amount"])
+                .replace("{REGEX_KEYWORD}", ctb.conf["regex"]["values"]["keyword"])
+                .replace("{REGEX_USERNAME}", ctb.conf["regex"]["values"]["username"])
+                .replace("{BOT_NAME}", f"u/{ctb.conf['reddit']['auth']['username']}")
+            )
 
-                if regex["rg_coin"] > 0:
-                    assert ctb.coin
-                    rval2 = rval1.replace(
-                        "{REGEX_COIN}", ctb.coin.conf["regex"]["units"]
-                    )
-                    rval2 = rval2.replace(
-                        "{REGEX_ADDRESS}", ctb.coin.conf["regex"]["address"]
-                    )
-                    regex = re.compile(rval2, re.IGNORECASE | re.DOTALL)
-                    entry["coin"] = ctb.coin
-                else:
-                    assert regex["rg_keyword"] > 0
-                    regex = re.compile(rval1, re.IGNORECASE | re.DOTALL)
-                entry["regex"] = regex
-                logger.debug("ADDED REGEX for %s: %s", entry["action"], entry["regex"])
-                ctb.runtime["regex"].append(entry)
+            entry = {
+                "action": action,
+                "address": regex["address"],
+                "amount": regex["amount"],
+                "destination": regex["destination"],
+                "keyword": regex["keyword"],
+            }
 
-    logger.info("init_regex() DONE (%s expressions)", len(ctb.runtime["regex"]))
-    return None
+            entry["regex"] = re.compile(expression, re.IGNORECASE | re.DOTALL)
+            logger.debug(f"ADDED REGEX for {action}: {entry['regex'].pattern}")
+            ctb.runtime["regex"].append(entry)
 
 
-def eval_message(msg, ctb):
-    """
-    Evaluate message body and return a CtbAction
-    object if successful
-    """
-    logger.debug("eval_message()")
-
-    body = msg.body
-    for regex_info in ctb.runtime["regex"]:
-
-        # Attempt a match
-        match = regex_info["regex"].search(body)
-
+@log_function()
+def eval_message(*, ctb, message):
+    for regex in ctb.runtime["regex"]:
+        match = regex["regex"].search(message.body)
         if match:
-            # Match found
-            logger.debug("eval_message(): match found")
+            break
+    else:
+        logger.debug("eval_message(): no match found")
+        return None
 
-            # Extract matched fields into variables
-            # to_addr = (
-            #     match.group(regex_info["rg_address"])
-            #     if regex_info["rg_address"] > 0
-            #     else None
-            # )
-            amount = (
-                match.group(regex_info["rg_amount"])
-                if regex_info["rg_amount"] > 0
-                else None
-            )
-            keyword = (
-                match.group(regex_info["rg_keyword"])
-                if regex_info["rg_keyword"] > 0
-                else None
-            )
-            to_user = (
-                match.group(regex_info["rg_to_user"])[1:]
-                if regex_info["rg_to_user"] > 0
-                else None
-            )
+    # Match found
+    logger.debug("eval_message(): match found")
 
-            if not to_user and regex_info["action"] == "givetip":
-                logger.debug("eval_message(): can't tip with no to_user")
-                return None
+    # Extract matched fields into variables
+    amount = match.group(regex["amount"]) if regex.get("amount") else None
+    address = match.group(regex["address"]) if regex.get("address") else None
+    destination = (
+        match.group(regex["destination"]) if regex.get("destination") else None
+    )
+    keyword = match.group(regex["keyword"]) if regex.get("keyword") else None
 
-            # Return CtbAction instance with given variables
-            return CtbAction(
-                atype=regex_info["action"],
-                msg=msg,
-                from_user=msg.author,
-                to_user=to_user,
-                to_addr=None,
-                coin=regex_info["coin"],
-                coin_val=amount,
-                keyword=keyword,
-                ctb=ctb,
-            )
+    assert not (address and destination)
 
-    # No match found
-    logger.debug("eval_message(): no match found")
-    return None
+    return CtbAction(
+        action=regex["action"],
+        amount=amount,
+        ctb=ctb,
+        destination=address or destination,
+        keyword=keyword,
+        message=message,
+    )
 
 
 def eval_comment(comment, ctb):
@@ -1013,7 +617,7 @@ def eval_comment(comment, ctb):
     for r in ctb.runtime["regex"]:
 
         # Skip non-public actions
-        if not ctb.conf["regex"]["actions"][r.action]["public"]:
+        if not ctb.conf["regex"]["actions"][r.action].get("public"):
             continue
 
         # Attempt a match
@@ -1024,37 +628,36 @@ def eval_comment(comment, ctb):
             logger.debug("eval_comment(): match found")
 
             # Extract matched fields into variables
-            u_to = m.group(r.rg_to_user)[1:] if r.rg_to_user > 0 else None
-            to_addr = m.group(r.rg_address) if r.rg_address > 0 else None
-            amount = m.group(r.rg_amount) if r.rg_amount > 0 else None
-            keyword = m.group(r.rg_keyword) if r.rg_keyword > 0 else None
+            amount = m.group(r.amount) if r.amount > 0 else None
+            keyword = m.group(r.keyword) if r.keyword > 0 else None
+            to_addr = m.group(r.address) if r.address > 0 else None
+            to_user = m.group(r.to_user)[1:] if r.to_user > 0 else None
 
-            # If no destination mentioned, find parent submission's author
-            if not u_to and not to_addr:
-                # set u_to to author of parent comment
-                u_to = ctb_misc.reddit_get_parent_author(comment, ctb.reddit, ctb)
-                if not u_to:
-                    # couldn't determine u_to, giving up
+            # If no destination mentioned, find parent's author
+            if not to_user and not to_addr:
+                parent = comment.parent()
+                if not parent:
                     return None
+                to_user = parent.author
 
             # Check if from_user == to_user
-            if u_to and comment.author.name.lower() == u_to.lower():
+            if to_user and comment.author == to_user:
                 logger.warning(
-                    "eval_comment(): comment.author.name == u_to, ignoring comment",
-                    comment.author.name,
+                    "eval_comment(): comment.author == to_user, ignoring comment",
+                    comment.author,
                 )
                 return None
 
             # Return CtbAction instance with given variables
             logger.debug(
                 "eval_comment(): creating action %s: to_user=%s, to_addr=%s, amount=%s, coin=%s"
-                % (r.action, u_to, to_addr, amount, r.coin)
+                % (r.action, to_user, to_addr, amount, r.coin)
             )
             # logger.debug("eval_comment() DONE (yes)")
             return CtbAction(
                 atype=r.action,
-                msg=comment,
-                to_user=u_to,
+                message=comment,
+                to_user=to_user,
                 to_addr=to_addr,
                 coin=r.coin,
                 coin_val=amount,
@@ -1068,192 +671,101 @@ def eval_comment(comment, ctb):
     return None
 
 
-def check_action(
-    atype=None,
-    state=None,
-    coin=None,
-    msg_id=None,
-    created_utc=None,
-    from_user=None,
-    to_user=None,
-    subr=None,
+def check_action(**kwargs):
+    return actions(**kwargs, _check=True)
+
+
+@log_function("action")
+def actions(
+    *,
+    action=None,
+    created_at=None,
     ctb=None,
-    is_pending=False,
+    destination=None,
+    message_id=None,
+    source=None,
+    status=None,
+    _check=False,
 ):
-    """
-    Return True if action with given attributes exists in database
-    """
-    logger.debug("check_action(%s)", atype)
+    arguments = []
+    filters = []
+    for attribute in ("action", "message_id", "destination", "source", "status"):
+        value = locals()[attribute]
+        if value:
+            arguments.append(value)
+            filters.append(f"{attribute} = %s")
 
-    # Build SQL query
-    sql = "SELECT * FROM t_action"
-    sql_terms = []
-    if (
-        atype
-        or state
-        or coin
-        or msg_id
-        or created_utc
-        or from_user
-        or to_user
-        or subr
-        or is_pending
-    ):
-        sql += " WHERE "
-        if atype:
-            sql_terms.append("type = '%s'" % atype)
-        if state:
-            sql_terms.append("state = '%s'" % state)
-        if coin:
-            sql_terms.append("coin = '%s'" % coin)
-        if msg_id:
-            sql_terms.append("msg_id = '%s'" % msg_id)
-        if created_utc:
-            sql_terms.append("created_utc = %s" % created_utc)
-        if from_user:
-            sql_terms.append("from_user = '%s'" % from_user.lower())
-        if to_user:
-            sql_terms.append("to_user = '%s'" % to_user.lower())
-        if subr:
-            sql_terms.append("subreddit = '%s'" % subr)
-        if is_pending:
-            sql_terms.append("state <> 'pending'")
-        sql += " AND ".join(sql_terms)
+    if created_at:
+        filters.append(created_at)
 
-    try:
-        logger.debug("check_action(): <%s>", sql)
-        mysqlexec = ctb.db.execute(sql)
-        if mysqlexec.rowcount <= 0:
-            logger.debug("check_action() DONE (no)")
-            return False
-        else:
-            logger.debug("check_action() DONE (yes)")
-            return True
-    except Exception as e:
-        logger.error("check_action(): error executing <%s>: %s", sql, e)
-        raise
+    sql_where = f" WHERE {' AND '.join(filters)}"
+    sql = f"SELECT * FROM actions{sql_where}"
 
-    logger.warning("check_action() DONE (should not get here)")
-    return None
+    logger.debug(
+        f"get_actions(): {sql} {arguments}",
+    )
+    response = ctb.db.execute(sql, arguments)
 
+    if _check:
+        return response.rowcount > 0
 
-def get_actions(
-    atype=None,
-    state=None,
-    deleted_msg_id=None,
-    deleted_created_utc=None,
-    coin=None,
-    msg_id=None,
-    created_utc=None,
-    from_user=None,
-    to_user=None,
-    subr=None,
-    ctb=None,
-):
-    """
-    Return an array of CtbAction objects from database with given attributes
-    """
-    logger.debug("get_actions(%s)", atype)
+    if response.rowcount <= 0:
+        return []
 
-    # Build SQL query
-    sql = "SELECT * FROM t_action"
-    sql_terms = []
-    if atype or state or coin or msg_id or created_utc or from_user or to_user or subr:
-        sql += " WHERE "
-        if atype:
-            sql_terms.append("type = '%s'" % atype)
-        if state:
-            sql_terms.append("state = '%s'" % state)
-        if coin:
-            sql_terms.append("coin = '%s'" % coin)
-        if msg_id:
-            sql_terms.append("msg_id = '%s'" % msg_id)
-        if created_utc:
-            sql_terms.append("created_utc %s" % created_utc)
-        if from_user:
-            sql_terms.append("from_user = '%s'" % from_user.lower())
-        if to_user:
-            sql_terms.append("to_user = '%s'" % to_user.lower())
-        if subr:
-            sql_terms.append("subreddit = '%s'" % subr)
-        sql += " AND ".join(sql_terms)
+    results = []
+    for row in response:
+        logger.debug(f"get_actions(): found {row['message_id']}")
+        submission = ctb.reddit.submission(row["message_id"])
 
-    while True:
-        try:
-            r = []
-            logger.debug("get_actions(): <%s>", sql)
-            mysqlexec = ctb.db.execute(sql)
+        continue
 
-            if mysqlexec.rowcount <= 0:
-                logger.debug("get_actions() DONE (no)")
-                return r
+        message = None
 
-            for m in mysqlexec:
-                logger.debug("get_actions(): found %s", m["msg_link"])
+        # if submission:
+        #     if len(submission.comments) > 0:
+        #         message = submission.comments[0]
+        #         if not message.author:
+        #             logger.warning(
+        #                 "get_actions(): could not fetch message.author (deleted?) from message_link %s",
+        #                 m["message_link"],
+        #             )
+        #             logger.warning(
+        #                 "get_actions(): setting message.author to original tipper %s",
+        #                 m["from_user"],
+        #             )
+        #     else:
+        #         logger.warning(
+        #             "get_actions(): could not fetch message (deleted?) from message_link %s",
+        #             m["message_link"],
+        #         )
+        #         logger.warning(
+        #             "get_actions(): setting deleted_message_id %s", m["message_id"]
+        #         )
+        #         deleted_message_id = m["message_id"]
+        #         deleted_created_utc = m["created_utc"]
+        # else:
+        #     logger.warning(
+        #         "get_actions(): submission not found for %s . messageid %s",
+        #         m["message_link"],
+        #         m["message_id"],
+        #     )
+        #     deleted_message_id = m["message_id"]
+        #     deleted_created_utc = m["created_utc"]
 
-                # Get PRAW message (msg) and author (msg.author) objects
-                try:
-                    submission = ctb_misc.praw_call(
-                        ctb.reddit.get_submission, m["msg_link"]
-                    )
-                except Exception:
-                    submission = None
+        r.append(
+            CtbAction(
+                atype=atype,
+                message=message,
+                deleted_message_id=deleted_message_id,
+                deleted_created_utc=deleted_created_utc,
+                from_user=m["from_user"],
+                to_user=m["to_user"],
+                to_addr=m["to_addr"] if not m["to_user"] else None,
+                coin=m["coin"],
+                coin_val=Decimal(m["coin_val"]) if m["coin_val"] else None,
+                subr=m["subreddit"],
+                ctb=ctb,
+            )
+        )
 
-                msg = None
-
-                if not submission:
-                    logger.warning(
-                        "get_actions(): submission not found for %s . msgid %s",
-                        m["msg_link"],
-                        m["msg_id"],
-                    )
-                    deleted_msg_id = m["msg_id"]
-                    deleted_created_utc = m["created_utc"]
-                else:
-                    if not len(submission.comments) > 0:
-                        logger.warning(
-                            "get_actions(): could not fetch msg (deleted?) from msg_link %s",
-                            m["msg_link"],
-                        )
-                        logger.warning(
-                            "get_actions(): setting deleted_msg_id %s", m["msg_id"]
-                        )
-                        deleted_msg_id = m["msg_id"]
-                        deleted_created_utc = m["created_utc"]
-                    else:
-                        msg = submission.comments[0]
-                        if not msg.author:
-                            logger.warning(
-                                "get_actions(): could not fetch msg.author (deleted?) from msg_link %s",
-                                m["msg_link"],
-                            )
-                            logger.warning(
-                                "get_actions(): setting msg.author to original tipper %s",
-                                m["from_user"],
-                            )
-
-                r.append(
-                    CtbAction(
-                        atype=atype,
-                        msg=msg,
-                        deleted_msg_id=deleted_msg_id,
-                        deleted_created_utc=deleted_created_utc,
-                        from_user=m["from_user"],
-                        to_user=m["to_user"],
-                        to_addr=m["to_addr"] if not m["to_user"] else None,
-                        coin=m["coin"],
-                        coin_val=float(m["coin_val"]) if m["coin_val"] else None,
-                        subr=m["subreddit"],
-                        ctb=ctb,
-                    )
-                )
-
-            logger.debug("get_actions() DONE (yes)")
-            return r
-
-        except Exception as e:
-            logger.error("get_actions(): error executing <%s>: %s", sql, e)
-            raise
-
-    logger.warning("get_actions() DONE (should not get here)")
-    return None
+    return results

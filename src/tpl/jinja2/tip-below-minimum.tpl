@@ -1,9 +1,5 @@
-{% set user_from = a.u_from.name %}
-{% set amount_fmt = "%.8g %s" % (a.coinval, a.coin.upper()) %}
-{% set min_fmt = "%.10g" % min_value %}
-{% set coin_name = ctb.conf["coin"]["name"] %}
-I'm sorry {{ user_from | replace('_', '\_') }}, your tip/withdraw of __{{ amount_fmt }}__ is below minimum of __{{ min_fmt }}__. I cannot process very small transactions because of high network fee requirement.
+I'm sorry {{ message.author | replace('_', '\_') }}, your {{ action_name }} of __{{ amount_formatted }}__ is below the minimum of __{{ minimum_formatted }}__. I cannot process very small transactions because of network fee requirements.
 
-If you really need to withdraw this amount, try depositing some {{ coin_name }}s to meet the minimum limit, then withdrawing everything.
+If you really need to {{ action_name }}, try depositing some {{ ctb.conf["coin"]["name"] }} to meet the minimum limit and then try again.
 
 {% include 'footer.tpl' %}

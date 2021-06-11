@@ -1,11 +1,9 @@
-{% set user = a.u_from.name %}
-
-Hello {{ user | replace('_', '\_') }}, here are your last {{ limit }} transactions.
+Hello {{ message.author | replace('_', '\_') }}, here are your last 75 transactions.
 
 {{ "|".join(keys) }}
 {{ "|".join([":---"] * (keys|length)) }}
-{% for h in history %}
-{{   "|".join(h) }}
+{% for item in history %}
+{{   "|".join(item) }}
 {% endfor %}
 
 {% include 'footer.tpl' %}

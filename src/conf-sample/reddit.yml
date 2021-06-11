@@ -6,7 +6,6 @@ auth:
 
 banned_users:
     list: ['nyantip', 'bitcointip', 'altcointip']
-    method: list
     subreddit: 'mysubreddit'
 
 contact:

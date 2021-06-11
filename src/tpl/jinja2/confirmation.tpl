@@ -1,22 +1,18 @@
-{% set title_fmt = "^__[%s]__:" % title %}
-{% set user_from_fmt = " ^/u/%s" % a.u_from.name %}
-{% set arrow_fmt = " ^->" %}
-{% if a.u_to: %}
-{%   set user_to_fmt = " ^/u/%s" % a.u_to.name %}
-{%   set stats_user_to_fmt = " ^^[[stats]](%s_%s)" % (ctb.conf["reddit"]["stats"]["url"], a.u_to.name) %}
+{% if to_address: %}
+{%   set explorer = ctb.conf["coin"]["explorer"] %}
+{%   set arrow_formatted = "[->]({}{})".format(explorer.transaction, transaction_id) %}
+{%   set destination_formatted = "[{}]({}{})".format(destination, explorer["url"], destination) %}
+{%   set stats_formatted = "" %}
+{% else: %}
+{%   set arrow_formatted = "->" %}
+{%   set destination_formatted = "u/{}".format(destination) %}
+{%   set stats_formatted = " ^^[[stats]]({}_{})".format(ctb.conf["reddit"]["stats"]["url"], destination) %}
 {% endif %}
-{% if a.addr_to: %}
-{%   set ex = ctb.conf["coin"]["explorer"] %}
-{%   set user_to_fmt = " ^[%s](%s%s)" % (a.addr_to, ex.address, a.addr_to) %}
-{%   set arrow_fmt = " ^[->](%s%s)" % (ex.transaction, a.txid) %}
-{% endif %}
-{% if a.coinval: %}
-{%   set coin_amount = a.coinval %}
-{%   set coin_name = ctb.conf["coin"]["name"] %}
-{%   set coin_symbol = ctb.conf["coin"]["symbol"] %}
-{%   set coin_amount_fmt = " ^__%s%.6f__ ^__%s(s)__" % (coin_symbol, coin_amount, coin_name) %}
-{% endif %}
-{% set stats_user_from_fmt = " ^^[[stats]](%s_%s)" % (ctb.conf["reddit"]["stats"]["url"], a.u_from.name) %}
-{% set stats_link_fmt = " ^[[stats]](%s)" % ctb.conf["reddit"]["stats"]["url"] %}
-{% set help_link_fmt = " ^[[help]](%s)" % ctb.conf["reddit"]["help"]["url"] %}
-{{ title_fmt }}{{ user_from_fmt }}{{ stats_user_from_fmt }}{{ arrow_fmt }}{{ user_to_fmt }}{{ stats_user_to_fmt }}{{ coin_amount_fmt }}{{ help_link_fmt }}{{ stats_link_fmt }}
+^__[{{ title }}]__
+
+^u/{{ message.author }}^^[[stats]]({{ ctb.conf["reddit"]["stats"]["url"] }}_{{ message.author }}) ^{{ arrow_formatted }} ^{{ destination_formatted }}{{ stats_formatted }}
+
+^__{{ amount_formatted }}__
+
+^[[help]]({{ ctb.conf["reddit"]["help"] }})
+^[[stats]]({{ ctb.conf["reddit"]["stats"]["url"] }})
