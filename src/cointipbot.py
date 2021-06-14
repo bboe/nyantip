@@ -198,7 +198,7 @@ class CointipBot:
 
         for action in ctb_action.actions(
             action="tip",
-            created_at=f"created_at < DATE_ADD(NOW(), INTERVAL {expire_hours} HOUR)",
+            created_at=f"created_at < DATE_SUB(NOW(), INTERVAL {expire_hours} HOUR)",
             ctb=self,
             status="pending",
         ):

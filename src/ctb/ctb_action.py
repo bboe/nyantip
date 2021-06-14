@@ -118,38 +118,33 @@ class CtbAction(object):
 
     @log_function(klass="CtbAction")
     def action_accept(self):
+        pending_actions = actions(
+            action="tip", ctb=self.ctb, status="pending", destination=self.source
+        )
+        if not pending_actions:
+            return self._fail("accept failed", "no-pending-tips.tpl")
+
         if not self.source.is_registered():
             self.source.register()
 
-        pending_actions = actions(
-            atype="tip", to_user=self.source, state="pending", ctb=self.ctb
-        )
-        if actions:
-            for a in actions:
-
-                logger.info(
-                    "tip(): moving %f from %s to %s...",
-                    self.amount,
-                    self.ctb.conf["reddit"]["auth"]["username"],
-                    self.u_to,
-                )
-                res = self.coin.sendtouser(
-                    _userfrom=self.ctb.conf["reddit"]["auth"]["username"],
-                    _userto=self.u_to,
-                    _amount=self.amount,
-                )
-                ctb_stats.update_user_stats(ctb=a.ctb, username=a.source)
-                ctb_stats.update_user_stats(ctb=a.ctb, username=a.u_to)
-        else:
-            message = self.ctb.jenv.get_template("no-pending-tips.tpl").render(
-                user_from=self.source, a=self, ctb=self.ctb
-            )
-            logger.debug("accept(): %s", message)
-            ctb_misc.praw_call(self.message.reply, message)
-            return False
+        users_to_update = set()
+        for action in pending_actions:
+            if not self._safe_send(
+                destination=self.source, source=self.ctb.bot, amount=action.amount
+            ):
+                self.save(status="failed")
+                return
+            action.save(status="completed")
+            users_to_update.add(action.source.name)
 
         self.save(status="completed")
-        return True
+        self.action = "info"
+        self.action_info(save=False)
+
+        ctb_stats.update_user_stats(ctb=self.ctb, username=self.source)
+        for username in users_to_update:
+            ctb_stats.update_user_stats(ctb=self.ctb, username=username)
+
 
     @log_function(klass="CtbAction")
     def action_decline(self):
@@ -283,8 +278,8 @@ class CtbAction(object):
         )
         self.destination.tell(body=response, subject="tip received")
 
-        # ctb_stats.update_user_stats(ctb=self.ctb, username=self.source)
-        # ctb_stats.update_user_stats(ctb=self.ctb, username=self.destination)
+        ctb_stats.update_user_stats(ctb=self.ctb, username=self.source)
+        ctb_stats.update_user_stats(ctb=self.ctb, username=self.destination)
 
     @log_function(klass="CtbAction")
     def action_withdraw(self):
@@ -359,9 +354,7 @@ class CtbAction(object):
     @log_function(klass="CtbAction")
     def perform(self):
         if self.action == "accept":
-            if self.action_accept():
-                self.action = "info"
-                self.action_info()
+            self.action_accept()
         elif self.action == "decline":
             self.action_decline()
         elif self.action == "history":

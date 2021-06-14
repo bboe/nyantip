@@ -145,6 +145,8 @@ def update_all_user_stats(ctb=None):
 
 
 def update_user_stats(*, ctb, username):
+    return
+
     # Start building stats page
     user_stats = "### Tipping Summary for /u/%s\n\n" % username
     page = ctb.conf["reddit"]["stats"]["page"] + "_" + username

@@ -15,7 +15,6 @@ def log_function(*fields, klass=None, log_method=None, log_response=False):
     if not log_method:
         log_method = logger.debug
 
-    @wraps
     def decorator(function):
         def wrapped(*args, **kwargs):
             arguments = ",".join(
