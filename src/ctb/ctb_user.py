@@ -67,7 +67,7 @@ class CtbUser(object):
     @log_function(klass="CtbUser")
     def register(self):
         address = self.ctb.coin.generate_address(user=self.name)
-        logger.info("register({self.name}): got {self.ctb.coin} address {address}")
+        logger.info(f"register({self.name}): got {self.ctb.coin} address {address}")
         self.ctb.db.execute(
             "INSERT INTO users (address,username) VALUES (%s, %s)", (address, self)
         )
@@ -78,9 +78,9 @@ class CtbUser(object):
 
         if message and (reply_to_comment or not message.was_comment):
             assert self.redditor == message.author
-            logger.debug(f"tell({message.id}): replying to message")
+            logger.debug(f"tell({self.redditor}): replying to message {message.id}")
             message.reply(body)
             return
 
-        logger.debug(f"tell({self.name}): sending message")
+        logger.debug(f"tell({self.name}): sending message {subject}")
         self.redditor.message(message=body, subject=subject)

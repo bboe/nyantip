@@ -28,18 +28,14 @@ class CtbCoin:
     def __init__(self, conf):
         self.conf = conf
 
-        logger.debug("connecting to %s...", self.conf["name"])
-        self.connection = Bitcoind(self.conf["config_file"])
+        logger.debug(f"connecting to {conf['name']}")
+        self.connection = Bitcoind(conf["config_file"])
 
-        logger.info(f"Setting tx fee of {self.conf['transaction_fee']:f}")
+        logger.info(f"Setting transaction fee of {conf['transaction_fee']}")
         try:
-            self.connection.settxfee(float(self.conf["transaction_fee"]))
-        except ConnectionRefusedError:
-            logger.exception(
-                "error connecting to %s using %s: %s",
-                self.conf["name"],
-                self.conf["config_file"],
-            )
+            self.connection.settxfee(float(conf["transaction_fee"]))
+        except ConnectionRefusedError as exception:
+            logger.error(f"error connecting to {conf['name']} ({conf['config_file']})")
             sys.exit(1)
 
     def __str__(self):
@@ -63,7 +59,7 @@ class CtbCoin:
 
     @log_function("amount", "destination", "source", klass="CtbCoin")
     def send(self, *, amount, destination, source):
-        self.connection.move(source.name, destination.name, amount)
+        self.connection.move(source.name, destination.name, float(amount))
 
     @log_function("amount", "address", "source", klass="CtbCoin", log_response=True)
     def transfer(self, *, address, amount, source):

@@ -112,7 +112,6 @@ class CointipBot:
         if not message.author:
             logger.info(f"ignoring {message_type} with no author")
             return
-        logger.info(f"{message_type} from {message.author}")
 
         if ctb_action.check_action(ctb=self, message_id=message.id):
             logger.warning(
@@ -132,7 +131,9 @@ class CointipBot:
         )
         action = action_method(ctb=self, message=message)
         if action:
-            logger.info(f"{action.action} from {message.author} ({message.id})")
+            logger.info(
+                f"{action.action} from {message.author} ({message_type} {message.id})"
+            )
             logger.debug(f"message body: {message.body}")
             action.perform()
             return
@@ -144,7 +145,6 @@ class CointipBot:
                 message=message,
                 message_type=message_type,
             )
-            logger.debug(f"{response}")
             ctb_user.CtbUser(
                 ctb=self, name=message.author, redditor=message.author
             ).tell(
@@ -238,10 +238,10 @@ class CointipBot:
         # Ensure pending tips <= CointipBot's balance
         balance = self.bot.balance(kind="tip")
         pending_tips = sum(
-            x.value
+            x.amount
             for x in ctb_action.actions(action="tip", ctb=self, status="pending")
         )
-        if balance - pending_tips < -0.000001:
+        if balance < pending_tips:
             raise Exception(
                 f"self_checks(): CointipBot's balance ({balance}) < total pending tips ({pending_tips})"
             )

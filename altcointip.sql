@@ -1,10 +1,11 @@
 CREATE TABLE IF NOT EXISTS `actions` (
   `action` enum('accept','decline','history','info','register','tip','withdraw') NOT NULL,
-  `amount` float unsigned DEFAULT NULL,
+  `amount` decimal(17,8) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT NOW(),
   `destination` varchar(34) DEFAULT NULL,
   `message_id` varchar(10) NOT NULL,
   `message_link` varchar(200) DEFAULT NULL,
+  `message_timestamp` timestamp NOT NULL,
   `source` varchar(20) NOT NULL,
   `status` enum('completed','declined','expired','failed','pending') NOT NULL,
   `subreddit` varchar(24) DEFAULT NULL,

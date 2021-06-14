@@ -6,13 +6,13 @@
 {% else: %}
 {%   set arrow_formatted = "->" %}
 {%   set destination_formatted = "u/{}".format(destination) %}
-{%   set stats_formatted = " ^^[[stats]]({}_{})".format(ctb.conf["reddit"]["stats"]["url"], destination) %}
+{%   set stats_formatted = " ^[[stats]]({}_{})".format(ctb.conf["reddit"]["stats"]["url"], destination) %}
 {% endif %}
-^__[{{ title }}]__
+__[{{ title }}]__
 
-^u/{{ message.author }}^^[[stats]]({{ ctb.conf["reddit"]["stats"]["url"] }}_{{ message.author }}) ^{{ arrow_formatted }} ^{{ destination_formatted }}{{ stats_formatted }}
+u/{{ message.author }}^[[stats]]({{ ctb.conf["reddit"]["stats"]["url"] }}_{{ message.author }}) {{ arrow_formatted }} {{ destination_formatted }}{{ stats_formatted }}
 
-^__{{ amount_formatted }}__
+__{{ amount_formatted }}__
 
 ^[[help]]({{ ctb.conf["reddit"]["help"] }})
 ^[[stats]]({{ ctb.conf["reddit"]["stats"]["url"] }})
