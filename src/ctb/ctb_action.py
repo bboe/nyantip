@@ -56,7 +56,6 @@ class CtbAction(object):
 
         # self.deleted_message_id = deleted_message_id
         # self.deleted_created_utc = deleted_created_utc
-
         # self.subreddit = subreddit
 
         if self.action in ["tip", "withdraw"]:
@@ -134,8 +133,21 @@ class CtbAction(object):
             ):
                 self.save(status="failed")
                 return
-            action.save(status="completed")
             users_to_update.add(action.source.name)
+            action.save(status="completed")
+
+            response = self.ctb.jenv.get_template("confirmation.tpl").render(
+                amount_formatted=action._amount_formatted,
+                ctb=self.ctb,
+                destination=action.destination,
+                message=action.message,
+                title="verified^nyan",
+                to_address=False,
+                transaction_id=None,
+            )
+            action.source.tell(
+                body=response, message=action.message, subject="tip succeeded"
+            )
 
         self.save(status="completed")
         self.action = "info"
@@ -144,7 +156,6 @@ class CtbAction(object):
         ctb_stats.update_user_stats(ctb=self.ctb, username=self.source)
         for username in users_to_update:
             ctb_stats.update_user_stats(ctb=self.ctb, username=username)
-
 
     @log_function(klass="CtbAction")
     def action_decline(self):
@@ -161,7 +172,19 @@ class CtbAction(object):
                 self.save(status="failed")
                 return
             action.save(status="declined")
-            # TODO Should we send a message to the source?
+
+            response = self.ctb.jenv.get_template("confirmation.tpl").render(
+                amount_formatted=action._amount_formatted,
+                ctb=self.ctb,
+                destination=action.destination,
+                message=action.message,
+                title="declined^nyan",
+                to_address=False,
+                transaction_id=None,
+            )
+            action.source.tell(
+                body=response, message=action.message, subject="tip succeeded"
+            )
 
         self.save(status="completed")
         response = self.ctb.jenv.get_template("pending-tips-declined.tpl").render(
@@ -287,9 +310,6 @@ class CtbAction(object):
         if not self.validate():
             return
 
-        # TODO
-        # Use a move if the address belongs to the local wallet
-
         try:
             self.transaction_id = self.ctb.coin.transfer(
                 address=self.destination, amount=self.amount, source=self.source.name
@@ -319,35 +339,22 @@ class CtbAction(object):
             body=response, message=self.message, subject="withdraw succeeded"
         )
 
+    @log_function(klass="CtbAction")
     def expire(self):
-        """
-        Expire a pending tip
-        """
-        logger.debug("expire()")
-
-        # Move coins back into self.source account
-        logger.info(
-            "expire(): moving %s %s from %s to %s",
-            self.amount,
-            self.coin.conf["name"].upper(),
-            self.ctb.conf["reddit"]["auth"]["username"],
-            self.source,
-        )
-        if not self.coin.sendtouser(
-            _userfrom=self.ctb.conf["reddit"]["auth"]["username"],
-            _userto=self.source,
-            _amount=self.amount,
+        if not self._safe_send(
+            destination=self.source, source=self.ctb.bot, amount=self.amount
         ):
-            raise Exception("expire(): sendtouser() failed")
-
-        # Save transaction as expired
+            return
         self.save(status="expired")
 
         response = self.ctb.jenv.get_template("confirmation.tpl").render(
-            action=self,
+            amount_formatted=self._amount_formatted,
             ctb=self.ctb,
+            destination=self.destination,
             message=self.message,
-            title="Expired",
+            title="expired^nyan",
+            to_address=False,
+            transaction_id=None,
         )
         self.source.tell(body=response, message=self.message, subject="tip expired")
 
@@ -374,16 +381,19 @@ class CtbAction(object):
         #     realmessageid = self.deleted_message_id
         #     realutc = self.deleted_created_utc
 
-        result = self.ctb.db.execute("REPLACE INTO actions (action, amount, destination, message_id, message_timestamp, source, status, transaction_id) VALUES (%s, %s, %s, %s, FROM_UNIXTIME(%s), %s, %s, %s)", (
-            self.action,
-            self.amount,
-            self.destination,
-            self.message.id,
-            self.message.created_utc,
-            self.source.name,
-            status,
-            self.transaction_id,
-        ))
+        result = self.ctb.db.execute(
+            "REPLACE INTO actions (action, amount, destination, message_id, message_timestamp, source, status, transaction_id) VALUES (%s, %s, %s, %s, FROM_UNIXTIME(%s), %s, %s, %s)",
+            (
+                self.action,
+                self.amount,
+                self.destination,
+                self.message.id,
+                self.message.created_utc,
+                self.source.name,
+                status,
+                self.transaction_id,
+            ),
+        )
         assert 1 <= result.rowcount <= 2
 
     @log_function(klass="CtbAction", log_response=True)
@@ -457,7 +467,7 @@ class CtbAction(object):
                     destination=self.destination,
                     message=self.message,
                     to_address=False,
-                    title="verified^nyan",
+                    title="pending accept^nyan",
                 )
                 self.source.tell(
                     body=response,
@@ -482,9 +492,6 @@ class CtbAction(object):
 
 @log_function()
 def init_regex(ctb):
-    """
-    Initialize regular expressions used to match messages and comments
-    """
     ctb.runtime["regex"] = []
 
     for action, action_conf in ctb.conf["regex"]["actions"].items():
@@ -556,9 +563,6 @@ def eval_message(*, ctb, message):
 
 
 def eval_comment(comment, ctb):
-    """
-    Evaluate comment body and return a CtbAction object if successful
-    """
     logger.debug("eval_comment()")
 
     body = comment.body
@@ -693,10 +697,14 @@ def actions(
         #     deleted_message_id = m["message_id"]
         #     deleted_created_utc = m["created_utc"]
 
+        amount = row["amount"]
+        if amount is not None:
+            amount = amount.normalize()
+
         results.append(
             CtbAction(
                 action=action,
-                amount=row["amount"],
+                amount=amount,
                 ctb=ctb,
                 destination=row["destination"],
                 message=ctb.reddit.inbox.message(row["message_id"]),

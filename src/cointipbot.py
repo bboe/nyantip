@@ -175,9 +175,6 @@ class CointipBot:
 
     @log_decorater
     def connect_reddit(self):
-        """
-        Returns a praw connection object
-        """
         reddit = praw.Reddit(
             check_for_updates=False,
             user_agent=f"nyancointipbot/{__version__} by u/bboe",

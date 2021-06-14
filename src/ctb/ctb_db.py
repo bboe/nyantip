@@ -24,11 +24,9 @@ class CointipBotDatabase:
     metadata = MetaData()
 
     def __init__(self, dsn_url):
-        """Pass a DSN URL conforming to the SQLAlchemy API"""
         self.dsn_url = dsn_url
 
     def connect(self):
-        """Return a connection object"""
         engine = create_engine(
             self.dsn_url, echo_pool=True, poolclass=SingletonThreadPool
         )
