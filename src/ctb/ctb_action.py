@@ -38,7 +38,7 @@ class CtbAction(object):
         # deleted_created_utc=None,
         # deleted_message_id=None,
         keyword=None,
-        # subreddit=None,
+        subreddit=None,
     ):
 
         self.action = action
@@ -52,11 +52,11 @@ class CtbAction(object):
         self.source = ctb_user.CtbUser(
             ctb=ctb, name=message.author.name, redditor=message.author
         )
+        self.subreddit = subreddit
         self.transaction_id = None
 
         # self.deleted_message_id = deleted_message_id
         # self.deleted_created_utc = deleted_created_utc
-        # self.subreddit = subreddit
 
         if self.action in ["tip", "withdraw"]:
             if keyword:
@@ -527,100 +527,6 @@ def init_regex(ctb):
             entry["regex"] = re.compile(expression, re.IGNORECASE | re.DOTALL)
             logger.debug(f"ADDED REGEX for {action}: {entry['regex'].pattern}")
             ctb.runtime["regex"].append(entry)
-
-
-@log_function()
-def eval_message(*, ctb, message):
-    for regex in ctb.runtime["regex"]:
-        match = regex["regex"].search(message.body)
-        if match:
-            break
-    else:
-        logger.debug("eval_message(): no match found")
-        return None
-
-    # Match found
-    logger.debug("eval_message(): match found")
-
-    # Extract matched fields into variables
-    amount = match.group(regex["amount"]) if regex.get("amount") else None
-    address = match.group(regex["address"]) if regex.get("address") else None
-    destination = (
-        match.group(regex["destination"]) if regex.get("destination") else None
-    )
-    keyword = match.group(regex["keyword"]) if regex.get("keyword") else None
-
-    assert not (address and destination)
-
-    return CtbAction(
-        action=regex["action"],
-        amount=amount,
-        ctb=ctb,
-        destination=address or destination,
-        keyword=keyword,
-        message=message,
-    )
-
-
-def eval_comment(comment, ctb):
-    logger.debug("eval_comment()")
-
-    body = comment.body
-    for r in ctb.runtime["regex"]:
-
-        # Skip non-public actions
-        if not ctb.conf["regex"]["actions"][r.action].get("public"):
-            continue
-
-        # Attempt a match
-        m = r.regex.search(body)
-
-        if m:
-            # Match found
-            logger.debug("eval_comment(): match found")
-
-            # Extract matched fields into variables
-            amount = m.group(r.amount) if r.amount > 0 else None
-            keyword = m.group(r.keyword) if r.keyword > 0 else None
-            to_addr = m.group(r.address) if r.address > 0 else None
-            to_user = m.group(r.to_user)[1:] if r.to_user > 0 else None
-
-            # If no destination mentioned, find parent's author
-            if not to_user and not to_addr:
-                parent = comment.parent()
-                if not parent:
-                    return None
-                to_user = parent.author
-
-            # Check if from_user == to_user
-            if to_user and comment.author == to_user:
-                logger.warning(
-                    "eval_comment(): comment.author == to_user, ignoring comment",
-                    comment.author,
-                )
-                return None
-
-            # Return CtbAction instance with given variables
-            logger.debug(
-                "eval_comment(): creating action %s: to_user=%s, to_addr=%s, amount=%s, coin=%s"
-                % (r.action, to_user, to_addr, amount, r.coin)
-            )
-            # logger.debug("eval_comment() DONE (yes)")
-            return CtbAction(
-                atype=r.action,
-                message=comment,
-                to_user=to_user,
-                to_addr=to_addr,
-                coin=r.coin,
-                coin_val=amount,
-                keyword=keyword,
-                subr=comment.subreddit,
-                ctb=ctb,
-            )
-
-    # No match found
-    logger.debug("eval_comment() DONE (no match)")
-    return None
 
 
 def check_action(**kwargs):

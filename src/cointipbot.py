@@ -126,32 +126,66 @@ class CointipBot:
             logger.info(f"ignoring message from banned user {message.author}")
             return
 
-        action_method = (
-            ctb_action.eval_comment if message.was_comment else ctb_action.eval_message
-        )
-        action = action_method(ctb=self, message=message)
-        if action:
-            logger.info(
-                f"{action.action} from {message.author} ({message_type} {message.id})"
-            )
-            logger.debug(f"message body: {message.body}")
-            action.perform()
+        for regex in self.runtime["regex"]:
+            action_info = self.conf["regex"]["actions"][regex["action"]]
+            is_public = isinstance(action_info, dict) and action_info.get("public")
+            if message.was_comment and not is_public:
+                continue
+
+            match = regex["regex"].search(message.body)
+            if match:
+                action = regex["action"]
+                break
+        else:
+            logger.debug("process_message(): no match found")
+            self.no_match(message=message, message_type=message_type)
             return
 
+        # Match found
+        logger.debug(f"process_message(): {message_type} match found")
+
+        # Extract matched fields into variables
+        amount = match.group(regex["amount"]) if regex.get("amount") else None
+        address = match.group(regex["address"]) if regex.get("address") else None
+        destination = match.group(regex["destination"]) if regex.get("destination") else None
+        keyword = match.group(regex["keyword"]) if regex.get("keyword") else None
+
+        assert not (address and destination)  # Both should never be set
+
+        if not address and not destination:
+            if message.was_comment:
+                destination = message.parent().author
+                assert destination
+
+        logger.info(
+            f"{action} from {message.author} ({message_type} {message.id})"
+        )
+        logger.debug(f"message body: {message.body}")
+        ctb_action.CtbAction(
+            action=action,
+            amount=amount,
+            ctb=self,
+            destination=address or destination,
+            keyword=keyword,
+            message=message,
+            subreddit=getattr(message, "subreddit"),
+        ).perform()
+
+
+    def no_match(self, *, message, message_type):
         logger.info("no match")
-        if message_type == "message":
-            response = self.jenv.get_template("didnt-understand.tpl").render(
-                ctb=self,
-                message=message,
-                message_type=message_type,
-            )
-            ctb_user.CtbUser(
-                ctb=self, name=message.author, redditor=message.author
-            ).tell(
-                body=response,
-                message=message,
-                subject="What?",
-            )
+        response = self.jenv.get_template("didnt-understand.tpl").render(
+            ctb=self,
+            message=message,
+            message_type=message_type,
+        )
+        ctb_user.CtbUser(
+            ctb=self, name=message.author, redditor=message.author
+        ).tell(
+            body=response,
+            message=message,
+            subject="What?",
+        )
 
     @log_decorater
     def connect_db(self):
