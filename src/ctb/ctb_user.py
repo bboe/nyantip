@@ -27,18 +27,19 @@ logger = logging.getLogger("ctb.user")
 class CtbUser(object):
     @log_function("name", klass="CtbUser")
     def __init__(self, *, ctb, name, redditor=None):
+        assert isinstance(name, str)
         self.ctb = ctb
         self.name = name
         self.redditor = redditor
+
+    def __eq__(self, other):
+        return isinstance(other, CtbUser) and self.name.lower() == other.name.lower()
 
     def __repr__(self):
         return f"<CtbUser name={self.name}>"
 
     def __str__(self):
         return self.name
-
-    def __eq__(self, other):
-        return isinstance(other, CtbUser) and self.name.lower() == other.name.lower()
 
     @log_function("kind", klass="CtbUser")
     def balance(self, *, kind):

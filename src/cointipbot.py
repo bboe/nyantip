@@ -127,9 +127,7 @@ class CointipBot:
             return
 
         for regex in self.runtime["regex"]:
-            action_info = self.conf["regex"]["actions"][regex["action"]]
-            is_public = isinstance(action_info, dict) and action_info.get("public")
-            if message.was_comment and not is_public:
+            if regex["only"] and message_type != regex["only"]:
                 continue
 
             match = regex["regex"].search(message.body)
@@ -141,8 +139,6 @@ class CointipBot:
             self.no_match(message=message, message_type=message_type)
             return
 
-        logger.debug(f"process_message(): {message_type} match found")
-
         address = match.group(regex["address"]) if regex.get("address") else None
         amount = match.group(regex["amount"]) if regex.get("amount") else None
         destination = (
@@ -153,7 +149,7 @@ class CointipBot:
         assert not (address and destination)  # Both should never be set
         if not address and not destination:
             if message.was_comment:
-                destination = message.parent().author
+                destination = message.parent().author.name
                 assert destination
 
         logger.info(f"{action} from {message.author} ({message_type} {message.id})")
@@ -174,7 +170,9 @@ class CointipBot:
             message=message,
             message_type=message_type,
         )
-        ctb_user.CtbUser(ctb=self, name=message.author, redditor=message.author).tell(
+        ctb_user.CtbUser(
+            ctb=self, name=message.author.name, redditor=message.author
+        ).tell(
             body=response,
             message=message,
             subject="What?",

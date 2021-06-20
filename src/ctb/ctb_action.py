@@ -197,14 +197,18 @@ class CtbAction(object):
         history = []
 
         response = self.ctb.db.execute(
-            self.ctb.conf["db"]["sql"]["history"], (self.destination, self.source)
+            self.ctb.conf["db"]["sql"]["history"], (self.source, self.source)
         )
         for row in response:
             history_entry = []
             for key in response.keys():
                 history_entry.append(
                     ctb_stats.format_value(
-                        row, key, self.source, self.ctb, compact=True
+                        compact=True,
+                        ctb=self.ctb,
+                        key=key,
+                        username=self.source.name,
+                        value=row[key],
                     )
                 )
             history.append(history_entry)
@@ -383,16 +387,20 @@ class CtbAction(object):
 
     @log_function("status", klass="CtbAction")
     def save(self, *, status):
-        was_comment = isinstance(self.message, Comment) or self.message.was_comment
+        permalink = None
+        if isinstance(self.message, Comment):
+            self.message.refresh()
+            permalink = self.message.permalink
+
         result = self.ctb.db.execute(
-            "REPLACE INTO actions (action, amount, destination, message_id, message_kind, message_timestamp, source, status, transaction_id) VALUES (%s, %s, %s, %s, %s, FROM_UNIXTIME(%s), %s, %s, %s)",
+            "REPLACE INTO actions (action, amount, destination, message_id, message_timestamp, path, source, status, transaction_id) VALUES (%s, %s, %s, %s, FROM_UNIXTIME(%s), %s, %s, %s, %s)",
             (
                 self.action,
                 self.amount,
                 self.destination,
                 self.message.id,
-                "comment" if was_comment else "message",
                 self.message.created_utc,
+                permalink,
                 self.source.name,
                 status,
                 self.transaction_id,
@@ -503,6 +511,7 @@ def init_regex(ctb):
             expression = action_conf
             entry = {
                 "action": action,
+                "only": "message",
                 "regex": re.compile(action_conf, re.IGNORECASE | re.DOTALL),
             }
             entry["regex"] = re.compile(expression, re.IGNORECASE | re.DOTALL)
@@ -510,7 +519,7 @@ def init_regex(ctb):
             ctb.runtime["regex"].append(entry)
             continue
 
-        for _, regex in sorted(action_conf["regex"].items()):
+        for _, regex in sorted(action_conf.items()):
             expression = (
                 regex["value"]
                 .replace("{REGEX_ADDRESS}", ctb.coin.conf["regex"])
@@ -526,6 +535,7 @@ def init_regex(ctb):
                 "amount": regex["amount"],
                 "destination": regex["destination"],
                 "keyword": regex["keyword"],
+                "only": regex.get("only"),
             }
 
             entry["regex"] = re.compile(expression, re.IGNORECASE | re.DOTALL)
@@ -580,7 +590,7 @@ def actions(
         if amount is not None:
             amount = amount.normalize()
 
-        if row["message_kind"] == "comment":
+        if row["path"] is not None:
             message = ctb.reddit.comment(row["message_id"])
         else:
             message = ctb.reddit.inbox.message(row["message_id"])

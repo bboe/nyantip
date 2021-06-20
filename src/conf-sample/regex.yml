@@ -5,58 +5,61 @@ actions:
     info: \Ainfo$
     register: \Aregister$
     tip:
-        public: true
-        regex:
-            message_parent_amount:
-                address: 0
-                amount: 1
-                destination: 0
-                keyword: 0
-                value: \A{BOT_NAME}\s+tip\s+{REGEX_AMOUNT}$
-            message_parent_keyword:
-                address: 0
-                amount: 0
-                destination: 0
-                keyword: 1
-                value: \A{BOT_NAME}\s+tip\s+{REGEX_KEYWORD}$
-            message_redditor_amount:
-                address: 0
-                amount: 2
-                destination: 1
-                keyword: 0
-                value: \A{BOT_NAME}\s+tip\s+{REGEX_USERNAME}\s+{REGEX_AMOUNT}$
-            message_redditor_keyword:
-                address: 0
-                amount: 0
-                destination: 1
-                keyword: 2
-                value: \A{BOT_NAME}\s+tip\s+{REGEX_USERNAME}\s+{REGEX_KEYWORD}$
-            reply_amount:
-                address: 0
-                amount: 2
-                destination: 1
-                keyword: 0
-                value: \Atip\s+{REGEX_USERNAME}\s+{REGEX_AMOUNT}$
-            reply_keyword:
-                address: 0
-                amount: 0
-                destination: 1
-                keyword: 2
-                value: \Atip\s+{REGEX_USERNAME}\s+{REGEX_KEYWORD}$
+        message_parent_amount:
+            address: 0
+            amount: 1
+            destination: 0
+            keyword: 0
+            only: comment
+            value: \A{BOT_NAME}\s+tip\s+{REGEX_AMOUNT}$
+        message_parent_keyword:
+            address: 0
+            amount: 0
+            destination: 0
+            keyword: 1
+            only: comment
+            value: \A{BOT_NAME}\s+tip\s+{REGEX_KEYWORD}$
+        message_redditor_amount:
+            address: 0
+            amount: 2
+            destination: 1
+            keyword: 0
+            value: \A{BOT_NAME}\s+tip\s+{REGEX_USERNAME}\s+{REGEX_AMOUNT}$
+        message_redditor_keyword:
+            address: 0
+            amount: 0
+            destination: 1
+            keyword: 2
+            value: \A{BOT_NAME}\s+tip\s+{REGEX_USERNAME}\s+{REGEX_KEYWORD}$
+        reply_amount:
+            address: 0
+            amount: 2
+            destination: 1
+            keyword: 0
+            only: message
+            value: \Atip\s+{REGEX_USERNAME}\s+{REGEX_AMOUNT}$
+        reply_keyword:
+            address: 0
+            amount: 0
+            destination: 1
+            keyword: 2
+            only: message
+            value: \Atip\s+{REGEX_USERNAME}\s+{REGEX_KEYWORD}$
     withdraw:
-        regex:
-            amount:
-                address: 1
-                amount: 2
-                destination: 0
-                keyword: 0
-                value: \Awithdraw\s+{REGEX_ADDRESS}\s+{REGEX_AMOUNT}$
-            keyword:
-                address: 1
-                amount: 0
-                destination: 0
-                keyword: 2
-                value: \Awithdraw\s+{REGEX_ADDRESS}\s+{REGEX_KEYWORD}$
+        amount:
+            address: 1
+            amount: 2
+            destination: 0
+            keyword: 0
+            only: message
+            value: \Awithdraw\s+{REGEX_ADDRESS}\s+{REGEX_AMOUNT}$
+        keyword:
+            address: 1
+            amount: 0
+            destination: 0
+            keyword: 2
+            only: message
+            value: \Awithdraw\s+{REGEX_ADDRESS}\s+{REGEX_KEYWORD}$
 values:
     amount: (\d{1,9}(?:\.\d{0,8})?)
     keyword: (all|nothing)

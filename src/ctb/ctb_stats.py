@@ -21,6 +21,7 @@
 import logging
 import re
 import time
+from datetime import datetime
 from decimal import Decimal
 
 from .util import log_function
@@ -219,75 +220,40 @@ def update_user_stats(*, ctb, username):
     return True
 
 
-def format_value(m, k, username, ctb, compact=False):
-    """
-    Format value for display based on its type
-    m[k] is the value, k is the database row name
-    """
-
-    if not m[k]:
+def format_value(*, compact=False, ctb, key, username, value):
+    if not value:
         return "-"
 
-    # Format cryptocoin
-    if isinstance(m[k], Decimal) and k.find("coin") > -1:
-        coin_symbol = ctb.conf["coin"]["symbol"]
-        return "%s&nbsp;%.5g" % (coin_symbol, m[k])
+    if isinstance(value, Decimal):
+        return f"{value.normalize():f} {ctb.conf['coin']['name']}"
+    if isinstance(value, datetime):
+        return value.isoformat(" ", "minutes")
+    if key == "comment":
+        return f"[link]({value})"
+    if key == "status":
+        return "✓" if value == "completed" else value
 
-    # Format username
-    elif k.find("user") > -1 and isinstance(m[k], str):
+
+    if key in ("destination", "source") and len(value) <= 20:
+        is_username = value.lower() == username.lower()
+
         if compact:
-            return (
-                ("**/u/%s**" % m[k])
-                if m[k].lower() == username.lower()
-                else ("/u/%s" % m[k])
+            return f"**u/{value}**" if is_username else f"u/{value}"
+
+        username = f"**{value}**" if is_username else value
+        toreturn = "[%s](/u/%s)" % (un, re.escape(value))
+        if value.lower() != username.lower():
+            toreturn += "^[[stats]](/r/%s/wiki/%s_%s)" % (
+                ctb.conf["reddit"]["stats"]["subreddit"],
+                ctb.conf["reddit"]["stats"]["page"],
+                value,
             )
-        else:
-            un = ("**%s**" % m[k]) if m[k].lower() == username.lower() else m[k]
-            toreturn = "[%s](/u/%s)" % (un, re.escape(m[k]))
-            if m[k].lower() != username.lower():
-                toreturn += "^[[stats]](/r/%s/wiki/%s_%s)" % (
-                    ctb.conf["reddit"]["stats"]["subreddit"],
-                    ctb.conf["reddit"]["stats"]["page"],
-                    m[k],
-                )
-            return toreturn
+        return toreturn
 
-    # Format address
-    elif k.find("addr") > -1:
-        displayaddr = m[k][:6] + "..." + m[k][-5:]
-        return "[%s](%s%s)" % (
-            displayaddr,
-            ctb.conf["coin"]["explorer"]["address"],
-            m[k],
-        )
+    if key == destination:
+        explorer_url = ctb.conf["coin"]["explorer"]["address"] + value
+        return f"[{value[:6]}...{value[-5:]}]({explorer_url})"
 
-    # Format state
-    elif k.find("state") > -1:
-        if m[k] == "completed":
-            return "✓"
-        else:
-            return m[k]
+    return value
 
-    # Format type
-    elif k.find("type") > -1:
-        if m[k] == "givetip":
-            return "tip"
-        if compact:
-            if m[k] == "withdraw":
-                return "w"
 
-    # Format subreddit
-    elif k.find("subreddit") > -1:
-        return "/r/%s" % m[k]
-
-    # Format link
-    elif k.find("link") > -1:
-        return "[link](%s)" % m[k]
-
-    # Format time
-    elif k.find("utc") > -1:
-        return "%s" % time.strftime("%Y-%m-%d", time.localtime(m[k]))
-
-    # It's something else
-    else:
-        return str(m[k])
