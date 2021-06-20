@@ -17,6 +17,8 @@
 
 import logging
 
+from praw.exceptions import RedditAPIException
+
 from .util import log_function
 
 logger = logging.getLogger("ctb.user")
@@ -79,8 +81,17 @@ class CtbUser(object):
         if message and (reply_to_comment or not message.was_comment):
             assert self.redditor == message.author
             logger.debug(f"tell({self.redditor}): replying to message {message.id}")
-            message.reply(body)
-            return
+            try:
+                message.reply(body)
+                return
+            except RedditAPIException as exception:
+                was_deleted = False
+                for subexception in exception.items:
+                    if subexception.error_type == "DELETED_COMMENT":
+                        was_deleted = True
+                        logger.debug(f"tell({self.redditor}): comment was deleted")
+                if not was_deleted:
+                    raise
 
         logger.debug(f"tell({self.name}): sending message {subject}")
         self.redditor.message(message=body, subject=subject)

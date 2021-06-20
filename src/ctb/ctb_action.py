@@ -181,14 +181,16 @@ class CtbAction(object):
                 transaction_id=None,
             )
             action.source.tell(
-                body=response, message=action.message, subject="tip succeeded"
+                body=response, message=action.message, subject="tip declined"
             )
 
         self.save(status="completed")
         response = self.ctb.jenv.get_template("pending-tips-declined.tpl").render(
             ctb=self.ctb, message=self.message
         )
-        self.source.tell(body=response, message=self.message, subject="decline failed")
+        self.source.tell(
+            body=response, message=self.message, subject="declined succeeded"
+        )
 
     @log_function(klass="CtbAction")
     def action_history(self):
@@ -288,7 +290,12 @@ class CtbAction(object):
             to_address=False,
             transaction_id=None,
         )
-        self.source.tell(body=response, message=self.message, subject="tip succeeded")
+        self.source.tell(
+            body=response,
+            message=self.message,
+            reply_to_comment=True,
+            subject="tip succeeded",
+        )
 
         dummy_message = DummyMessage(self.destination, self.message.context)
         response = self.ctb.jenv.get_template("tip-received.tpl").render(
