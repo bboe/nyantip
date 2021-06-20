@@ -4,11 +4,10 @@ CREATE TABLE IF NOT EXISTS `actions` (
   `created_at` timestamp NOT NULL DEFAULT NOW(),
   `destination` varchar(34) DEFAULT NULL,
   `message_id` varchar(10) NOT NULL,
-  `message_link` varchar(200) DEFAULT NULL,
+  `message_kind` enum('comment', 'message') NOT NULL,
   `message_timestamp` timestamp NOT NULL,
   `source` varchar(20) NOT NULL,
   `status` enum('completed','declined','expired','failed','pending') NOT NULL,
-  `subreddit` varchar(24) DEFAULT NULL,
   `transaction_id` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`message_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

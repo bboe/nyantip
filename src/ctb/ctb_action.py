@@ -19,6 +19,8 @@ import logging
 import re
 from decimal import Decimal
 
+from praw.models import Comment
+
 from . import ctb_stats, ctb_user
 from .util import DummyMessage, log_function
 
@@ -35,10 +37,7 @@ class CtbAction(object):
         message,
         amount=None,
         destination=None,
-        # deleted_created_utc=None,
-        # deleted_message_id=None,
         keyword=None,
-        subreddit=None,
     ):
 
         self.action = action
@@ -52,11 +51,7 @@ class CtbAction(object):
         self.source = ctb_user.CtbUser(
             ctb=ctb, name=message.author.name, redditor=message.author
         )
-        self.subreddit = subreddit
         self.transaction_id = None
-
-        # self.deleted_message_id = deleted_message_id
-        # self.deleted_created_utc = deleted_created_utc
 
         if self.action in ["tip", "withdraw"]:
             if keyword:
@@ -146,7 +141,10 @@ class CtbAction(object):
                 transaction_id=None,
             )
             action.source.tell(
-                body=response, message=action.message, subject="tip succeeded"
+                body=response,
+                message=action.message,
+                reply_to_comment=True,
+                subject="tip succeeded",
             )
 
         self.save(status="completed")
@@ -378,16 +376,15 @@ class CtbAction(object):
 
     @log_function("status", klass="CtbAction")
     def save(self, *, status):
-        #     realmessageid = self.deleted_message_id
-        #     realutc = self.deleted_created_utc
-
+        was_comment = isinstance(self.message, Comment) or self.message.was_comment
         result = self.ctb.db.execute(
-            "REPLACE INTO actions (action, amount, destination, message_id, message_timestamp, source, status, transaction_id) VALUES (%s, %s, %s, %s, FROM_UNIXTIME(%s), %s, %s, %s)",
+            "REPLACE INTO actions (action, amount, destination, message_id, message_kind, message_timestamp, source, status, transaction_id) VALUES (%s, %s, %s, %s, %s, FROM_UNIXTIME(%s), %s, %s, %s)",
             (
                 self.action,
                 self.amount,
                 self.destination,
                 self.message.id,
+                "comment" if was_comment else "message",
                 self.message.created_utc,
                 self.source.name,
                 status,
@@ -572,40 +569,14 @@ def actions(
     for row in response:
         logger.debug(f"actions(): found {row['message_id']}")
 
-        # if submission:
-        #     if len(submission.comments) > 0:
-        #         message = submission.comments[0]
-        #         if not message.author:
-        #             logger.warning(
-        #                 "get_actions(): could not fetch message.author (deleted?) from message_link %s",
-        #                 m["message_link"],
-        #             )
-        #             logger.warning(
-        #                 "get_actions(): setting message.author to original tipper %s",
-        #                 m["from_user"],
-        #             )
-        #     else:
-        #         logger.warning(
-        #             "get_actions(): could not fetch message (deleted?) from message_link %s",
-        #             m["message_link"],
-        #         )
-        #         logger.warning(
-        #             "get_actions(): setting deleted_message_id %s", m["message_id"]
-        #         )
-        #         deleted_message_id = m["message_id"]
-        #         deleted_created_utc = m["created_utc"]
-        # else:
-        #     logger.warning(
-        #         "get_actions(): submission not found for %s . messageid %s",
-        #         m["message_link"],
-        #         m["message_id"],
-        #     )
-        #     deleted_message_id = m["message_id"]
-        #     deleted_created_utc = m["created_utc"]
-
         amount = row["amount"]
         if amount is not None:
             amount = amount.normalize()
+
+        if row["message_kind"] == "comment":
+            message = ctb.reddit.comment(row["message_id"])
+        else:
+            message = ctb.reddit.inbox.message(row["message_id"])
 
         results.append(
             CtbAction(
@@ -613,7 +584,7 @@ def actions(
                 amount=amount,
                 ctb=ctb,
                 destination=row["destination"],
-                message=ctb.reddit.inbox.message(row["message_id"]),
+                message=message,
             )
         )
 
