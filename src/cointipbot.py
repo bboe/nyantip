@@ -269,7 +269,7 @@ class CointipBot:
             )
 
         # Ensure coin balance is positive
-        balance = float(self.coin.connection.getbalance())
+        balance = self.coin.connection.getbalance()
         if balance < 0:
             raise Exception(f"self_checks(): negative balance: {balance}")
 
@@ -277,7 +277,5 @@ class CointipBot:
         for row in self.db.execute("SELECT username FROM users ORDER BY username"):
             username = row["username"]
             user = ctb_user.CtbUser(ctb=self, name=username)
-            if not user.is_registered():
-                raise Exception(f"self_checks(): {username} is not registered")
             if user.balance(kind="tip") < 0:
                 raise Exception(f"self_checks(): {username} has a negative balance")
