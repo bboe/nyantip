@@ -1,158 +1,63 @@
-values:
-    username:
-        regex: '(@[\w-]{3,20})'
-    amount:
-        regex: '([0-9]{1,9}(?:\.[0-9]{0,16})?)'
-    keywords:
-        regex: '(all|flip|megaflip|gigaflip|roll|megaroll|gigaroll|sushi|random01|random05|random1|random3|random5|random10|random15|random25|random50|random100|random250|random500|random1000|upvote|pi|e|leet|quarter|half|cookie|nothing|gum|beer|nicebeer|hug|kiss|nyan|highfive|fart|coffee)'
-    tip_init:
-        regex: '(/u/nyantip|nyantip)'
-
 actions:
-    givetip:
-        enabled: true
+    accept: \Aaccept$
+    decline: \Adecline$
+    history: \Ahistory$
+    info: \Ainfo$
+    register: \Aregister$
+    tip:
         public: true
         regex:
-            a:
-                value: '(\+){REGEX_TIP_INIT}(\s+){REGEX_AMOUNT}(\s+){REGEX_COIN}'
-                rg_amount: 4
-                rg_keyword: 0
-                rg_address: 0
-                rg_to_user: 0
-                rg_coin: 6
-            aa:
-                value: '(\+){REGEX_TIP_INIT}(\s+){REGEX_KEYWORD}(\s+){REGEX_COIN}'
-                rg_amount: 0
-                rg_keyword: 4
-                rg_address: 0
-                rg_to_user: 0
-                rg_coin: 6
-            b:
-                value: '(\+){REGEX_TIP_INIT}(\s+){REGEX_ADDRESS}(\s+){REGEX_AMOUNT}(\s+){REGEX_COIN}'
-                rg_amount: 6
-                rg_keyword: 0
-                rg_address: 4
-                rg_to_user: 0
-                rg_coin: 8
-            bb:
-                value: '(\+){REGEX_TIP_INIT}(\s+){REGEX_ADDRESS}(\s+){REGEX_KEYWORD}(\s+){REGEX_COIN}'
-                rg_amount: 0
-                rg_keyword: 6
-                rg_address: 4
-                rg_to_user: 0
-                rg_coin: 8
-            bbb:
-                value: '(\+){REGEX_TIP_INIT}(\s+){REGEX_ADDRESS}(\s+){REGEX_COIN}{REGEX_AMOUNT}'
-                rg_amount: 7
-                rg_keyword: 0
-                rg_address: 4
-                rg_to_user: 0
-                rg_coin: 6
-            bbbb:
-                value: '(\+){REGEX_TIP_INIT}(\s+){REGEX_ADDRESS}(\s+){REGEX_COIN}{REGEX_KEYWORD}'
-                rg_amount: 0
-                rg_keyword: 7
-                rg_address: 4
-                rg_to_user: 0
-                rg_coin: 6
-            c:
-                value: '(\+){REGEX_TIP_INIT}(\s+){REGEX_USER}(\s+){REGEX_AMOUNT}(\s+){REGEX_COIN}'
-                rg_amount: 6
-                rg_keyword: 0
-                rg_address: 0
-                rg_to_user: 4
-                rg_coin: 8
-            cc:
-                value: '(\+){REGEX_TIP_INIT}(\s+){REGEX_USER}(\s+){REGEX_KEYWORD}(\s+){REGEX_COIN}'
-                rg_amount: 0
-                rg_keyword: 6
-                rg_address: 0
-                rg_to_user: 4
-                rg_coin: 8
-            ccc:
-                value: '(\+){REGEX_TIP_INIT}(\s+){REGEX_USER}(\s+){REGEX_COIN}{REGEX_AMOUNT}'
-                rg_amount: 7
-                rg_keyword: 0
-                rg_address: 0
-                rg_to_user: 4
-                rg_coin: 6
-            cccc:
-                value: '(\+){REGEX_TIP_INIT}(\s+){REGEX_USER}(\s+){REGEX_COIN}{REGEX_KEYWORD}'
-                rg_amount: 0
-                rg_keyword: 7
-                rg_address: 0
-                rg_to_user: 4
-                rg_coin: 6
-            g:
-                value: '(\+){REGEX_TIP_INIT}(\s+){REGEX_COIN}{REGEX_AMOUNT}'
-                rg_amount: 5
-                rg_keyword: 0
-                rg_address: 0
-                rg_to_user: 0
-                rg_coin: 4
-            gg:
-                value: '(\+){REGEX_TIP_INIT}(\s+){REGEX_COIN}{REGEX_KEYWORD}'
-                rg_amount: 0
-                rg_keyword: 5
-                rg_address: 0
-                rg_to_user: 0
-                rg_coin: 4
-            ggggg:
-                value: '(\+){REGEX_TIP_INIT}(\s+){REGEX_KEYWORD}'
-                rg_amount: 0
-                rg_keyword: 4
-                rg_address: 0
-                rg_to_user: 0
-                rg_coin: 0
-    info:
-        enabled: true
-        public: false
-        regex: '(\+)(info|balance)'
-    register:
-        enabled: true
-        public: false
-        regex: '(\+)(register)'
-    accept:
-        enabled: true
-        public: false
-        regex: '(\+)(accept)'
-    decline:
-        enabled: true
-        public: false
-        regex: '(\+)(decline)'
+            message_parent_amount:
+                address: 0
+                amount: 1
+                destination: 0
+                keyword: 0
+                value: \A{BOT_NAME}\s+tip\s+{REGEX_AMOUNT}$
+            message_parent_keyword:
+                address: 0
+                amount: 0
+                destination: 0
+                keyword: 1
+                value: \A{BOT_NAME}\s+tip\s+{REGEX_KEYWORD}$
+            message_redditor_amount:
+                address: 0
+                amount: 2
+                destination: 1
+                keyword: 0
+                value: \A{BOT_NAME}\s+tip\s+{REGEX_USERNAME}\s+{REGEX_AMOUNT}$
+            message_redditor_keyword:
+                address: 0
+                amount: 0
+                destination: 1
+                keyword: 2
+                value: \A{BOT_NAME}\s+tip\s+{REGEX_USERNAME}\s+{REGEX_KEYWORD}$
+            reply_amount:
+                address: 0
+                amount: 2
+                destination: 1
+                keyword: 0
+                value: \Atip\s+{REGEX_USERNAME}\s+{REGEX_AMOUNT}$
+            reply_keyword:
+                address: 0
+                amount: 0
+                destination: 1
+                keyword: 2
+                value: \Atip\s+{REGEX_USERNAME}\s+{REGEX_KEYWORD}$
     withdraw:
-        enabled: true
-        public: false
         regex:
-            a:
-                value: '(\+)(withdraw)(\s+){REGEX_ADDRESS}(\s+){REGEX_AMOUNT}(\s+){REGEX_COIN}'
-                rg_amount: 6
-                rg_keyword: 0
-                rg_address: 4
-                rg_to_user: 0
-                rg_coin: 8
-            aa:
-                value: '(\+)(withdraw)(\s+){REGEX_ADDRESS}(\s+){REGEX_KEYWORD}(\s+){REGEX_COIN}'
-                rg_amount: 0
-                rg_keyword: 6
-                rg_address: 4
-                rg_to_user: 0
-                rg_coin: 8
-            aaa:
-                value: '(\+)(withdraw)(\s+){REGEX_ADDRESS}(\s+){REGEX_COIN}{REGEX_AMOUNT}'
-                rg_amount: 7
-                rg_keyword: 0
-                rg_address: 4
-                rg_to_user: 0
-                rg_coin: 6
-            aaaa:
-                value: '(\+)(withdraw)(\s+){REGEX_ADDRESS}(\s+){REGEX_COIN}{REGEX_KEYWORD}'
-                rg_amount: 0
-                rg_keyword: 7
-                rg_address: 4
-                rg_to_user: 0
-                rg_coin: 6
-    history:
-        enabled: true
-        public: false
-        regex: '(\+)(history)'
+            amount:
+                address: 1
+                amount: 2
+                destination: 0
+                keyword: 0
+                value: \Awithdraw\s+{REGEX_ADDRESS}\s+{REGEX_AMOUNT}$
+            keyword:
+                address: 1
+                amount: 0
+                destination: 0
+                keyword: 2
+                value: \Awithdraw\s+{REGEX_ADDRESS}\s+{REGEX_KEYWORD}$
+values:
+    amount: (\d{1,9}(?:\.\d{0,8})?)
+    keyword: (all|nothing)
+    username: u/([\w-]{3,20})
