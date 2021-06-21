@@ -242,13 +242,13 @@ class CtbAction(object):
             minconf=self.ctb.coin.conf["minconf"]["tip"],
             user=self.source.name,
         )
-        row = self.ctb.db.execute(
+        address = self.ctb.db.execute(
             "SELECT address FROM users WHERE username = %s", self.source
-        ).fetchone()
+        ).scalar_one()
 
         response = self.ctb.jenv.get_template("info.tpl").render(
             action=self,
-            address=row["address"],
+            address=address,
             balance=balance,
             coin=self.ctb.coin,
             ctb=self.ctb,

@@ -28,13 +28,9 @@ ctb = cointipbot.CointipBot(
     init_coin=False,
     self_checks=False,
 )
+ctb_stats.update_stats(ctb=ctb)
+ctb_stats.update_tips(ctb=ctb)
 
-ctb_stats.update_user_stats(ctb=ctb, username="coinaday")
 
-# Update stats page
-# result = ctb_stats.update_stats(ctb=ctb)
-# logger.debug(result)
-
-# Update tips page
-# result = ctb_stats.update_tips(ctb=ctb)
-# logger.debug(result)
+# for username in ctb.db.execute("SELECT username FROM users ORDER BY username").scalars():
+#     ctb_stats.update_user_stats(ctb=ctb, username=username)

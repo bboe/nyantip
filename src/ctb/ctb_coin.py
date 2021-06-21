@@ -34,7 +34,7 @@ class CtbCoin:
         logger.info(f"Setting transaction fee of {conf['transaction_fee']}")
         try:
             self.connection.settxfee(float(conf["transaction_fee"]))
-        except ConnectionRefusedError as exception:
+        except ConnectionRefusedError:
             logger.error(f"error connecting to {conf['name']} ({conf['config_file']})")
             sys.exit(1)
 

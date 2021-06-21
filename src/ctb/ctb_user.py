@@ -63,9 +63,11 @@ class CtbUser(object):
 
     @log_function(klass="CtbUser", log_response=True)
     def is_registered(self):
-        sql = "SELECT 1 FROM users WHERE username = %s"
-        result = self.ctb.db.execute(sql, (self)).fetchone()
-        return bool(result)
+        return bool(
+            self.ctb.db.execute(
+                "SELECT 1 FROM users WHERE username=%s", self
+            ).one_or_none()
+        )
 
     @log_function(klass="CtbUser")
     def register(self):
