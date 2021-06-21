@@ -73,7 +73,8 @@ class CointipBot:
             self.coin = ctb_coin.CtbCoin(conf=self.conf["coin"])
         if init_reddit:
             self.reddit = self.connect_reddit()
-            ctb_action.init_regex(self)
+            if init_coin:
+                ctb_action.init_regex(self)
             self.load_banned_users()
         if self_checks:
             self.self_checks()

@@ -26,19 +26,15 @@ logger.setLevel(logging.DEBUG)
 
 ctb = cointipbot.CointipBot(
     init_coin=False,
-    init_db=True,
-    init_reddit=True,
     self_checks=False,
 )
 
+ctb_stats.update_user_stats(ctb=ctb, username="coinaday")
+
 # Update stats page
-result = ctb_stats.update_stats(ctb=ctb)
-logger.debug(result)
+# result = ctb_stats.update_stats(ctb=ctb)
+# logger.debug(result)
 
 # Update tips page
-result = ctb_stats.update_tips(ctb=ctb)
-logger.debug(result)
-
-# This isn't needed because it happens during the tip processing
-# result = ctb_stats.update_all_user_stats(ctb=ctb)
+# result = ctb_stats.update_tips(ctb=ctb)
 # logger.debug(result)
