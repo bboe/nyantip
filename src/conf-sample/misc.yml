@@ -1,5 +1,0 @@
-qr_service_url: 'https://chart.googleapis.com/chart?cht=qr&choe=UTF-8&chs=300x300&chl='
-
-times:
-    expire_pending_hours: 48
-    sleep_seconds: 60

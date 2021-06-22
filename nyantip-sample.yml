@@ -1,0 +1,117 @@
+banned:
+    - USER1
+    - USER2
+coin:
+    config_file: '~/Library/Application Support/NyanCoin/nyancoin.conf'
+    explorer:
+        address: https://www.nyanchain.com/ad.nyan?
+        transaction: https://www.nyanchain.com/tx.nyan?
+    minconf:
+        tip: 4
+        withdraw: 60
+    name: Nyancoin
+    regex: '(K[1-9a-z]{20,40})'
+    minimum_tip: "0.1"
+    minimum_withdraw: "1"
+    transaction_fee: "0.0001"
+    symbol: 'Ɲ'
+    unit: nya
+commands:
+    accept: \Aaccept$
+    decline: \Adecline$
+    history: \Ahistory$
+    info: \Ainfo$
+    register: \Aregister$
+    tip:
+        message_parent_amount:
+            address: 0
+            amount: 1
+            destination: 0
+            keyword: 0
+            only: comment
+            regex: \A{BOT_NAME}\s+tip\s+{REGEX_AMOUNT}$
+        message_parent_keyword:
+            address: 0
+            amount: 0
+            destination: 0
+            keyword: 1
+            only: comment
+            regex: \A{BOT_NAME}\s+tip\s+{REGEX_KEYWORD}$
+        message_redditor_amount:
+            address: 0
+            amount: 2
+            destination: 1
+            keyword: 0
+            regex: \A{BOT_NAME}\s+tip\s+{REGEX_USERNAME}\s+{REGEX_AMOUNT}$
+        message_redditor_keyword:
+            address: 0
+            amount: 0
+            destination: 1
+            keyword: 2
+            regex: \A{BOT_NAME}\s+tip\s+{REGEX_USERNAME}\s+{REGEX_KEYWORD}$
+        reply_amount:
+            address: 0
+            amount: 2
+            destination: 1
+            keyword: 0
+            only: message
+            regex: \Atip\s+{REGEX_USERNAME}\s+{REGEX_AMOUNT}$
+        reply_keyword:
+            address: 0
+            amount: 0
+            destination: 1
+            keyword: 2
+            only: message
+            regex: \Atip\s+{REGEX_USERNAME}\s+{REGEX_KEYWORD}$
+    withdraw:
+        amount:
+            address: 1
+            amount: 2
+            destination: 0
+            keyword: 0
+            only: message
+            regex: \Awithdraw\s+{REGEX_ADDRESS}\s+{REGEX_AMOUNT}$
+        keyword:
+            address: 1
+            amount: 0
+            destination: 0
+            keyword: 2
+            only: message
+            regex: \Awithdraw\s+{REGEX_ADDRESS}\s+{REGEX_KEYWORD}$
+database:
+    host: localhost
+    name: nyantip
+    password:
+    port: 3306
+    username:
+keywords:
+    all: Decimal(self.source.balance(kind=self.action) - (self.nyantip.config['coin']['transaction_fee'] if self.action == 'withdraw' else 0))
+    nothing: Decimal(self.nyantip.config["coin"]["minimum_tip"])
+pending_hours: 48
+qr_url: 'https://chart.googleapis.com/chart?cht=qr&choe=UTF-8&chs=300x300&chl='
+reddit:
+    client_id: OAUTH_CLIENT_ID
+    client_secret: OAUTH_CLIENT_SECRET
+    password: REDDIT_PASSWORD
+    subreddit: YOUR_SUBREDDIT
+    username: REDDIT_USERNAME
+sql:
+  globalstats:
+    1_total_users_registered:
+      description: "Number of registered users"
+      name: "Total Users Registered"
+      query: "SELECT COUNT(username) FROM users"
+    2_total_tippers:
+      description: "Number of users who tipped at least once"
+      name: "Total Tippers"
+      query: "SELECT COUNT(DISTINCT source) FROM actions WHERE action='tip' AND status='completed'"
+    3_total_tips:
+      name: "Total Number of Tips"
+      description: "Total number of tips given"
+      query: "SELECT COUNT(1) FROM actions WHERE action='tip' AND status='completed'"
+  history: "SELECT message_timestamp AS `when`, action, source, destination, amount, path AS comment, status FROM actions WHERE action IN ('tip', 'withdraw') AND (destination=%s OR source=%s) ORDER BY message_timestamp DESC LIMIT 75"
+  tips: "SELECT message_timestamp AS `when`, source, destination, amount, path AS comment FROM actions WHERE action='tip' AND status='completed' ORDER BY message_timestamp DESC"
+  userstats:
+    history: "SELECT message_timestamp AS `when`, action, source, destination, amount, path AS comment FROM actions WHERE action IN ('tip', 'withdraw') AND (destination=%s OR source=%s) AND status='completed' ORDER BY message_timestamp DESC"
+    total_received: "SELECT SUM(amount) AS total FROM actions WHERE action='tip' AND destination=%s AND status='completed'"
+    total_tipped: "SELECT SUM(amount) AS total FROM actions WHERE action='tip' AND source=%s AND status='completed'"
