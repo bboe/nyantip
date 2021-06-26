@@ -380,8 +380,10 @@ class Action(object):
     def save(self, *, status):
         permalink = None
         if isinstance(self.message, Comment):
-            self.message.refresh()
-            permalink = self.message.permalink
+            if "context" in self.__dict__:
+                permalink = self.context
+            else:
+                permalink = f"{self.message.permalink}?context=3"
 
         result = self.nyantip.database.execute(
             "REPLACE INTO actions (action, amount, destination, message_id, message_timestamp, path, source, status, transaction_id) VALUES (%s, %s, %s, %s, FROM_UNIXTIME(%s), %s, %s, %s, %s)",
