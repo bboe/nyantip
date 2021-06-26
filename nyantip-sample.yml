@@ -1,3 +1,4 @@
+backup_passphrase:
 banned:
     - USER1
     - USER2
@@ -83,7 +84,7 @@ database:
     name: nyantip
     password:
     port: 3306
-    username:
+    user:
 keywords:
     all: Decimal(self.source.balance(kind=self.action) - (self.nyantip.config['coin']['transaction_fee'] if self.action == 'withdraw' else 0))
     nothing: Decimal(self.nyantip.config["coin"]["minimum_tip"])

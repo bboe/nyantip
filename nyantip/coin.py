@@ -14,10 +14,12 @@
     You should have received a copy of the GNU General Public License
     along with ALTcointip.  If not, see <http://www.gnu.org/licenses/>.
 """
+import configparser
 import logging
+import os
 import sys
 
-from pifkoin.bitcoind import Bitcoind
+from bitcoinrpc.authproxy import AuthServiceProxy
 
 from .util import log_function
 
@@ -27,13 +29,16 @@ logger = logging.getLogger(__package__)
 class Coin:
     def __init__(self, config):
         self.config = config
+        rpc_config = read_coin_config(config["config_file"])
 
         logger.debug(f"connecting to {config['name']}")
-        self.connection = Bitcoind(config["config_file"])
+        self.connection = AuthServiceProxy(
+            f"http://{rpc_config['rpcuser']}:{rpc_config['rpcpassword']}@127.0.0.1:{rpc_config['rpcport']}"
+        )
 
         logger.info(f"Setting transaction fee of {config['transaction_fee']}")
         try:
-            self.connection.settxfee(float(config["transaction_fee"]))
+            self.connection.settxfee(config["transaction_fee"])
         except ConnectionRefusedError:
             logger.error(
                 f"error connecting to {config['name']} ({config['config_file']}) is it running?"
@@ -60,7 +65,7 @@ class Coin:
 
     @log_function("amount", "destination", "source", klass="Coin")
     def send(self, *, amount, destination, source):
-        self.connection.move(source.name, destination.name, float(amount))
+        self.connection.move(source.name, destination.name, amount)
 
     @log_function("amount", "address", "source", klass="Coin", log_response=True)
     def transfer(self, *, address, amount, source):
@@ -71,7 +76,7 @@ class Coin:
 
         try:
             return self.connection.sendfrom(
-                source, address, float(amount), self.config["minconf"]["withdraw"]
+                source, address, amount, self.config["minconf"]["withdraw"]
             )
         finally:
             if passphrase:
@@ -80,3 +85,10 @@ class Coin:
     @log_function("address", klass="Coin", log_response=True)
     def validate(self, *, address):
         return self.connection.validateaddress(address).get("isvalid", False)
+
+
+def read_coin_config(filename):
+    config = configparser.ConfigParser()
+    with open(os.path.expanduser(filename)) as fp:
+        config.read_string(f"[DEFAULT]\n{fp.read()}")
+    return dict(config.items("DEFAULT"))

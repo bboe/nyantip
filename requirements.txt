@@ -1,6 +1,0 @@
-Jinja2
-mysqlclient
-PyYAML
-praw >= 4
-sqlalchemy
-https://github.com/dpifke/pifkoin/archive/master.tar.gz

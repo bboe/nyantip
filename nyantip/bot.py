@@ -1,8 +1,13 @@
 import logging
 import os
 import re
+import shutil
 import sys
+import subprocess
+import tempfile
 import time
+import zipfile
+from datetime import datetime
 from decimal import Decimal
 
 import praw
@@ -23,6 +28,7 @@ log_decorater = log_function(klass="NyanTip", log_method=logger.info)
 
 
 class NyanTip:
+    CONFIG_NAME = "nyantip.yml"
     PERIODIC_TASKS = {
         "expire_pending_tips": {"period": 60},
         "load_banned_users": {"period": 300},
@@ -42,13 +48,10 @@ class NyanTip:
             undefined=StrictUndefined,
         )
 
-    @staticmethod
-    def config_to_decimal(container, key):
-        assert isinstance(container[key], str)
-        container[key] = Decimal(container[key]).normalize()
+        self.coin = Coin(config=self.config["coin"])
 
-    @classmethod
-    def parse_config(cls):
+    @staticmethod
+    def config_path():
         if "APPDATA" in os.environ:  # Windows
             os_config_path = os.environ["APPDATA"]
         elif "XDG_CONFIG_HOME" in os.environ:  # Modern Linux
@@ -59,27 +62,91 @@ class NyanTip:
             raise Exception(
                 "APPDATA, XDG_CONFIG_HOME, nor HOME environment variables are set"
             )
+        path = os.path.join(os_config_path, NyanTip.CONFIG_NAME)
+        if not os.path.isfile(path):
+            raise Exception(f"Config file does not exist at {path}")
+        return path
 
-        path = os.path.join(os_config_path, "nyantip.yml")
+    @staticmethod
+    def config_to_decimal(container, key):
+        assert isinstance(container[key], str)
+        container[key] = Decimal(container[key]).normalize()
+
+    @classmethod
+    def parse_config(cls):
+        path = cls.config_path()
         logger.debug(f"reading config from {path}")
         with open(path) as fp:
             config = yaml.safe_load(fp)
-
         cls.config_to_decimal(config["coin"], "minimum_tip")
         cls.config_to_decimal(config["coin"], "minimum_withdraw")
         cls.config_to_decimal(config["coin"], "transaction_fee")
-
         return config
+
+    def backup(self):
+        backup_name = f"backup_nyantip_{datetime.now().strftime('%Y%m%d%H%M')}"
+        backup_passphrase = self.config["backup_passphrase"]
+
+        with tempfile.NamedTemporaryFile() as temp_fp:
+            with zipfile.ZipFile(temp_fp, mode="w") as zip_fp:
+                # Backup config
+                zip_fp.write(
+                    self.config_path(), arcname=f"{backup_name}/{self.CONFIG_NAME}"
+                )
+
+                # Backup database
+                database = self.config["database"]["name"]
+                with tempfile.NamedTemporaryFile() as database_fp:
+                    mysqldump_command = [
+                        "mysqldump",
+                        "--databases",
+                        database,
+                        "--host",
+                        self.config["database"]["host"],
+                        "--port",
+                        str(self.config["database"]["port"]),
+                        "--single-transaction",
+                    ]
+                    password = self.config["database"]["password"]
+                    if password:
+                        mysqldump_command.extend(["--password", password])
+                    user = self.config["database"]["user"]
+                    if user:
+                        mysqldump_command.extend(["--user", user])
+                    subprocess.run(mysqldump_command, check=True, stdout=database_fp)
+                    zip_fp.write(
+                        database_fp.name, arcname=f"{backup_name}/{database}.sql"
+                    )
+
+                # Backup wallet
+                with tempfile.NamedTemporaryFile() as wallet_fp:
+                    self.coin.connection.backupwallet(wallet_fp.name)
+                    zip_fp.write(
+                        wallet_fp.name, arcname=f"{backup_name}/nyanwallet.dat"
+                    )
+
+            if backup_passphrase:
+                import gnupg
+
+                gpg = gnupg.GPG()
+                temp_fp.seek(0)
+                gpg.encrypt_file(
+                    temp_fp,
+                    output=f"{backup_name}.zip.gpg",
+                    passphrase=backup_passphrase,
+                    recipients=None,
+                    symmetric="AES256",
+                )
+            else:
+                shutil.copy(temp_fp.name, f"{backup_name}.zip")
 
     def connect_to_database(self):
         info = self.config["database"]
         name = info["name"]
-        username = self.config["database"]["username"]
-        logger.info(f"Connecting to database {name} as {username or 'anonymous'}")
+        user = self.config["database"]["user"]
+        logger.info(f"Connecting to database {name} as {user or 'anonymous'}")
 
-        credentials = (
-            f"{username}:{self.config['database']['password']}@" if username else ""
-        )
+        credentials = f"{user}:{self.config['database']['password']}@" if user else ""
         self.database = create_engine(
             f"mysql+mysqldb://{credentials}{info['host']}:{info['port']}/{name}?charset=utf8mb4"
         )
@@ -234,7 +301,6 @@ class NyanTip:
 
     def run(self):
         self.bot = User(name=self.config["reddit"]["username"], nyantip=self)
-        self.coin = Coin(config=self.config["coin"])
         self.prepare_commands()
         self.connect_to_database()
         self.connect_to_reddit()
@@ -285,7 +351,6 @@ class NyanTip:
         for row in self.database.execute(
             "SELECT username FROM users ORDER BY username"
         ):
-            break
             username = row["username"]
             if User(name=username, nyantip=self).balance(kind="tip") < 0:
                 raise Exception(f"{username} has a negative balance")
