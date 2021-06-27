@@ -383,6 +383,8 @@ class Action(object):
             if "context" in self.__dict__:
                 permalink = self.context
             else:
+                if "permalink" not in self.__dict__:
+                    self.message.refresh()
                 permalink = f"{self.message.permalink}?context=3"
 
         result = self.nyantip.database.execute(
