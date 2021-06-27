@@ -380,10 +380,12 @@ class Action(object):
     def save(self, *, status):
         permalink = None
         if isinstance(self.message, Comment):
-            if "context" in self.__dict__:
-                permalink = self.context
+            if "context" in self.message.__dict__ and self.message.context:
+                permalink = self.message.context
             else:
-                if "permalink" not in self.__dict__:
+                if "permalink" not in self.message.__dict__:
+                    logging.warning("This refresh shouldn't be necessary")
+                    logging.warning(vars(self.message))
                     self.message.refresh()
                 permalink = f"{self.message.permalink}?context=3"
 

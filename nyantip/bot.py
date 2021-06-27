@@ -290,10 +290,6 @@ class NyanTip:
                 destination = message.parent().author.name
                 assert destination
 
-        import pprint
-
-        pprint.pprint(vars(message))
-
         logger.info(f"{action} from {message.author} ({message_type} {message.id})")
         logger.debug(f"message body:\n<begin>\n{message.body}\n</end>")
         actions.Action(
