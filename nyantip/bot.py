@@ -263,12 +263,14 @@ class NyanTip:
             return
 
         for command in self.commands:
-            if command["only"] and message_type != command["only"]:
-                continue
-
             match = command["regex"].search(message.body)
             if match:
                 action = command["action"]
+                if command["only"] and message_type != command["only"]:
+                    logger.debug(
+                        f"ignoring {action} because it's only permitted in {command['only']}"
+                    )
+                    continue
                 break
         else:
             logger.debug("no match found")
@@ -288,8 +290,12 @@ class NyanTip:
                 destination = message.parent().author.name
                 assert destination
 
+        import pprint
+
+        pprint.pprint(vars(message))
+
         logger.info(f"{action} from {message.author} ({message_type} {message.id})")
-        logger.debug(f"message body: {message.body}")
+        logger.debug(f"message body:\n<begin>\n{message.body}\n</end>")
         actions.Action(
             action=action,
             amount=amount,
@@ -310,7 +316,7 @@ class NyanTip:
         self.load_banned_users()
         self.expire_pending_tips()
 
-        logger.info("Bot starting")
+        logger.info(f"Bot starting v{__version__}")
         for item in self.reddit.inbox.stream(pause_after=4):
             if item is None:
                 now = time.time()
