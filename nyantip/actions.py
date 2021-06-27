@@ -17,6 +17,7 @@
 
 import logging
 from decimal import Decimal
+from functools import partial
 
 from praw.models import Comment
 
@@ -87,7 +88,7 @@ class Action(object):
     def _format_coin(self, quantity):
         return f"{quantity:f} {self.nyantip.config['coin']['name']}"
 
-    def _safe_send(self, destination, source, amount=None):
+    def _safe_send(self, *, amount=None, destination, on_success, source):
         if amount is None:
             amount = self.amount
 
@@ -107,6 +108,17 @@ class Action(object):
                 destination=None,
                 to_address=False,
             )
+        try:
+            on_success()
+        except Exception:
+            # If the callback fails, we need to undo the send
+            logger.warning("rolling back the previous transfer")
+            self.nyantip.coin.send(
+                amount=amount,
+                destination=source,
+                source=destination,
+            )
+            raise
         return True
 
     def action_accept(self):
@@ -125,12 +137,14 @@ class Action(object):
         users_to_update = set()
         for action in pending_actions:
             if not self._safe_send(
-                destination=self.source, source=self.nyantip.bot, amount=action.amount
+                amount=action.amount,
+                destination=self.source,
+                on_success=partial(action.save, status="completed"),
+                source=self.nyantip.bot,
             ):
                 self.save(status="failed")
                 return
             users_to_update.add(action.source.name)
-            action.save(status="completed")
 
             response = self.nyantip.templates.get_template("confirmation.tpl").render(
                 amount_formatted=action._amount_formatted,
@@ -168,11 +182,13 @@ class Action(object):
 
         for action in pending_actions:
             if not self._safe_send(
-                destination=action.source, source=self.nyantip.bot, amount=action.amount
+                amount=action.amount,
+                destination=action.source,
+                on_success=partial(action.save, status="declined"),
+                source=self.nyantip.bot,
             ):
                 self.save(status="failed")
                 return
-            action.save(status="declined")
 
             response = self.nyantip.templates.get_template("confirmation.tpl").render(
                 amount_formatted=action._amount_formatted,
@@ -276,9 +292,12 @@ class Action(object):
         if not self.validate():
             return
 
-        if not self._safe_send(destination=self.destination, source=self.source):
+        if not self._safe_send(
+            destination=self.destination,
+            on_success=partial(self.save, status="completed"),
+            source=self.source,
+        ):
             return
-        self.save(status="completed")
 
         response = self.nyantip.templates.get_template("confirmation.tpl").render(
             amount_formatted=self._amount_formatted,
@@ -344,10 +363,11 @@ class Action(object):
 
     def expire(self):
         if not self._safe_send(
-            destination=self.source, source=self.nyantip.bot, amount=self.amount
+            destination=self.source,
+            on_success=partial(self.save, status="expired"),
+            source=self.nyantip.bot,
         ):
             return
-        self.save(status="expired")
 
         response = self.nyantip.templates.get_template("confirmation.tpl").render(
             amount_formatted=self._amount_formatted,
@@ -380,8 +400,14 @@ class Action(object):
     def save(self, *, status):
         permalink = None
         if isinstance(self.message, Comment):
-            self.message.refresh()
-            permalink = self.message.permalink
+            if "context" in self.message.__dict__ and self.message.context:
+                permalink = self.message.context
+            else:
+                if "permalink" not in self.message.__dict__:
+                    logging.warning("This refresh shouldn't be necessary")
+                    logging.warning(vars(self.message))
+                    self.message.refresh()
+                permalink = f"{self.message.permalink}?context=3"
 
         result = self.nyantip.database.execute(
             "REPLACE INTO actions (action, amount, destination, message_id, message_timestamp, path, source, status, transaction_id) VALUES (%s, %s, %s, %s, FROM_UNIXTIME(%s), %s, %s, %s, %s)",

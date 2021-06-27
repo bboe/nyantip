@@ -1,7 +1,7 @@
 import logging
 
 from praw.exceptions import RedditAPIException
-from prawcore.exceptions import NotFound
+from prawcore.exceptions import Forbidden, NotFound
 
 from .util import log_function
 
@@ -66,6 +66,8 @@ class User(object):
                         logger.debug(f"({self.redditor}): comment was deleted")
                 if not was_deleted:
                     raise
+            except Forbidden:
+                logger.warning(f"Could not reply to message {message.id}")
 
         logger.debug(f"({self.name}): sending message {subject}")
         self.redditor.message(message=body, subject=subject)

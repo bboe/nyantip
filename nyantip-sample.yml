@@ -85,6 +85,7 @@ database:
     password:
     port: 3306
     user:
+exception_user:
 keywords:
     all: Decimal(self.source.balance(kind=self.action) - (self.nyantip.config['coin']['transaction_fee'] if self.action == 'withdraw' else 0))
     nothing: Decimal(self.nyantip.config["coin"]["minimum_tip"])

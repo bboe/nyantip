@@ -4,14 +4,17 @@
 
 ### Install
 
+__Note__: If the following doesn't work, ensure you have pip installed:
+<https://packaging.python.org/guides/installing-using-linux-tools/>
+
 ```sh
-pip install nyancoin
+pip install nyantip
 ```
 
 If you would like to make encrypted backups, then install via:
 
 ```sh
-pip install nyancoin[gpg]
+pip install nyantip[gpg]
 ```
 
 ### Database
@@ -38,10 +41,13 @@ Create a dedicated Reddit account for your bot, and prepare an OAuth
 script-type application as described here:
 <https://github.com/reddit-archive/reddit/wiki/OAuth2-Quick-Start-Example#first-steps>
 
+The bot should be granted "Manage Users" and "Manage Wiki Pages" moderator
+permissions on the target subreddit.
+
 ### Configuration Files
 
 Copy the sample configuration file `nyantip-sample.yml` to
-`~/.config/nyantip.conf`. Make any necessary edits.
+`~/.config/nyantip.yml`. Make any necessary edits.
 
 ### Run
 

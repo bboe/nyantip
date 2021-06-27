@@ -1,10 +1,12 @@
 import logging
 import os
+import pprint
 import re
 import shutil
 import sys
 import subprocess
 import tempfile
+import traceback
 import time
 import zipfile
 from datetime import datetime
@@ -41,6 +43,7 @@ class NyanTip:
         self.commands = []
         self.config = self.parse_config()
         self.database = None
+        self.exception_user = None
         self.reddit = None
         self.templates = Environment(
             loader=PackageLoader(__package__),
@@ -164,6 +167,8 @@ class NyanTip:
                 logger.error("Invalid reddit credentials")
                 sys.exit(1)
             raise
+        if self.config["exception_user"]:
+            self.exception_user = self.reddit.redditor(self.config["exception_user"])
 
     @log_decorater
     def expire_pending_tips(self):
@@ -236,7 +241,7 @@ class NyanTip:
                     "only": option.get("only"),
                 }
 
-                command["regex"] = re.compile(expression, re.IGNORECASE | re.DOTALL)
+                command["regex"] = re.compile(expression, re.IGNORECASE | re.MULTILINE)
                 logger.debug(f"ADDED REGEX for {action}: {command['regex'].pattern}")
                 self.commands.append(command)
 
@@ -263,12 +268,14 @@ class NyanTip:
             return
 
         for command in self.commands:
-            if command["only"] and message_type != command["only"]:
-                continue
-
             match = command["regex"].search(message.body)
             if match:
                 action = command["action"]
+                if command["only"] and message_type != command["only"]:
+                    logger.debug(
+                        f"ignoring {action} because it's only permitted in {command['only']}"
+                    )
+                    continue
                 break
         else:
             logger.debug("no match found")
@@ -289,7 +296,7 @@ class NyanTip:
                 assert destination
 
         logger.info(f"{action} from {message.author} ({message_type} {message.id})")
-        logger.debug(f"message body: {message.body}")
+        logger.debug(f"message body:\n<begin>\n{message.body}\n</end>")
         actions.Action(
             action=action,
             amount=amount,
@@ -310,7 +317,7 @@ class NyanTip:
         self.load_banned_users()
         self.expire_pending_tips()
 
-        logger.info("Bot starting")
+        logger.info(f"Bot starting v{__version__}")
         for item in self.reddit.inbox.stream(pause_after=4):
             if item is None:
                 now = time.time()
@@ -322,7 +329,24 @@ class NyanTip:
                         now = time.time()
                         task_metadata["next_run_time"] = now + task_metadata["period"]
             else:
-                self.process_message(item)
+                try:
+                    self.process_message(item)
+                except Exception as error:
+                    item_info = pprint.pformat(vars(item), indent=4)
+                    logger.exception(
+                        f"Exception processing the following item:\n{item_info}"
+                    )
+
+                    if self.exception_user:
+                        message = f"Exception\n{traceback.format_exc()}\nItem:\n{item_info}".replace(
+                            "\n", "\n\n"
+                        )
+                        self.exception_user.message(
+                            message=message, subject="nyantip exception"
+                        )
+
+                    time.sleep(60)  # Let's slow things down if there are issues
+                    continue
                 item.mark_read()
 
     @log_decorater
