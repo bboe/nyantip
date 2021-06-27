@@ -67,7 +67,7 @@ class User(object):
                 if not was_deleted:
                     raise
             except Forbidden:
-                logger.warning(f"Could not reply")
+                logger.warning(f"Could not reply to message {message.id}")
 
         logger.debug(f"({self.name}): sending message {subject}")
         self.redditor.message(message=body, subject=subject)
