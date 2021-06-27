@@ -1,10 +1,12 @@
 import logging
 import os
+import pprint
 import re
 import shutil
 import sys
 import subprocess
 import tempfile
+import traceback
 import time
 import zipfile
 from datetime import datetime
@@ -41,6 +43,7 @@ class NyanTip:
         self.commands = []
         self.config = self.parse_config()
         self.database = None
+        self.exception_user = None
         self.reddit = None
         self.templates = Environment(
             loader=PackageLoader(__package__),
@@ -164,6 +167,8 @@ class NyanTip:
                 logger.error("Invalid reddit credentials")
                 sys.exit(1)
             raise
+        if self.config["exception_user"]:
+            self.exception_user = self.reddit.redditor(self.config["exception_user"])
 
     @log_decorater
     def expire_pending_tips(self):
@@ -324,7 +329,24 @@ class NyanTip:
                         now = time.time()
                         task_metadata["next_run_time"] = now + task_metadata["period"]
             else:
-                self.process_message(item)
+                try:
+                    self.process_message(item)
+                except Exception as error:
+                    item_info = pprint.pformat(vars(item), indent=4)
+                    logger.exception(
+                        f"Exception processing the following item:\n{item_info}"
+                    )
+
+                    if self.exception_user:
+                        message = f"Exception\n{traceback.format_exc()}\nItem:\n{item_info}".replace(
+                            "\n", "\n\n"
+                        )
+                        self.exception_user.message(
+                            message=message, subject="nyantip exception"
+                        )
+
+                    time.sleep(60)  # Let's slow things down if there are issues
+                    continue
                 item.mark_read()
 
     @log_decorater
