@@ -236,7 +236,7 @@ class NyanTip:
                     "only": option.get("only"),
                 }
 
-                command["regex"] = re.compile(expression, re.IGNORECASE | re.DOTALL)
+                command["regex"] = re.compile(expression, re.IGNORECASE | re.MULTILINE)
                 logger.debug(f"ADDED REGEX for {action}: {command['regex'].pattern}")
                 self.commands.append(command)
 
