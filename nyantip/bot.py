@@ -322,7 +322,7 @@ class NyanTip:
             if item is None:
                 now = time.time()
                 for task_name, task_metadata in self.PERIODIC_TASKS.items():
-                    if now >= task_metadata.get(
+                    if now >= task_metadata.setdefault(
                         "next_run_time", now + task_metadata["period"]
                     ):
                         getattr(self, task_name)()
