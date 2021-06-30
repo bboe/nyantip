@@ -140,8 +140,15 @@ def update_user_stats(*, nyantip, username):
 
 def update_wiki(*, lines, nyantip, page):
     subreddit = nyantip.config["reddit"]["subreddit"]
-    logger.debug(f"update_user_stats(): updating wiki {subreddit}/{page}")
-    nyantip.reddit.subreddit(subreddit).wiki[page].edit(content=wiki_fit(lines=lines))
+    content = wiki_fit(lines=lines)
+    wiki = nyantip.reddit.subreddit(subreddit).wiki[page]
+    if content.strip() != wiki.content_md.strip():
+        logger.debug(f"update_user_stats(): updating wiki {subreddit}/{page}")
+        wiki.edit(content=content)
+    else:
+        logger.debug(
+            f"update_user_stats(): content not changed on wiki {subreddit}/{page}"
+        )
 
 
 def wiki_fit(*, lines):
