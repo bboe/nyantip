@@ -13,10 +13,10 @@ from datetime import datetime
 from decimal import Decimal
 
 import praw
-import prawcore
 import yaml
 from jinja2 import Environment, PackageLoader, StrictUndefined
 from sqlalchemy import create_engine
+from prawcore.exceptions import PrawcoreException, ResponseException
 
 from . import actions, stats
 from .coin import Coin
@@ -28,6 +28,8 @@ logger = logging.getLogger(__package__)
 logger.setLevel(logging.DEBUG)
 log_decorater = log_function(klass="NyanTip", log_method=logger.info)
 
+EXCEPTION_SLEEP_TIME = 60  # seconds
+
 
 class NyanTip:
     CONFIG_NAME = "nyantip.yml"
@@ -38,6 +40,7 @@ class NyanTip:
     }
 
     def __init__(self):
+        self._running = False
         self.banned_users = None
         self.bot = None
         self.commands = []
@@ -85,6 +88,38 @@ class NyanTip:
         cls.config_to_decimal(config["coin"], "minimum_withdraw")
         cls.config_to_decimal(config["coin"], "transaction_fee")
         return config
+
+    def _run_loop(self):
+        for item in self.reddit.inbox.stream(pause_after=4):
+            if item is None:
+                now = time.time()
+                for task_name, task_metadata in self.PERIODIC_TASKS.items():
+                    if now >= task_metadata.setdefault(
+                        "next_run_time", now + task_metadata["period"]
+                    ):
+                        getattr(self, task_name)()
+                        now = time.time()
+                        task_metadata["next_run_time"] = now + task_metadata["period"]
+            else:
+                try:
+                    self.process_message(item)
+                except Exception:
+                    item_info = pprint.pformat(vars(item), indent=4)
+                    logger.exception(
+                        f"Exception processing the following item:\n{item_info}"
+                    )
+
+                    if self.exception_user:
+                        message = f"Exception\n{traceback.format_exc()}\nItem:\n{item_info}".replace(
+                            "\n", "\n\n"
+                        )
+                        self.exception_user.message(
+                            message=message, subject="nyantip exception"
+                        )
+
+                    time.sleep(60)  # Let's slow things down if there are issues
+                    continue
+                item.mark_read()
 
     def backup(self):
         backup_name = f"backup_nyantip_{datetime.now().strftime('%Y%m%d%H%M')}"
@@ -162,7 +197,7 @@ class NyanTip:
         )
         try:
             self.reddit.user.me()  # Ensure credentials are correct
-        except prawcore.exceptions.ResponseException as exception:
+        except ResponseException as exception:
             if exception.response.status_code == 401:
                 logger.error("Invalid reddit credentials")
                 sys.exit(1)
@@ -318,36 +353,18 @@ class NyanTip:
         self.expire_pending_tips()
 
         logger.info(f"Bot starting v{__version__}")
-        for item in self.reddit.inbox.stream(pause_after=4):
-            if item is None:
-                now = time.time()
-                for task_name, task_metadata in self.PERIODIC_TASKS.items():
-                    if now >= task_metadata.setdefault(
-                        "next_run_time", now + task_metadata["period"]
-                    ):
-                        getattr(self, task_name)()
-                        now = time.time()
-                        task_metadata["next_run_time"] = now + task_metadata["period"]
-            else:
-                try:
-                    self.process_message(item)
-                except Exception as error:
-                    item_info = pprint.pformat(vars(item), indent=4)
-                    logger.exception(
-                        f"Exception processing the following item:\n{item_info}"
-                    )
-
-                    if self.exception_user:
-                        message = f"Exception\n{traceback.format_exc()}\nItem:\n{item_info}".replace(
-                            "\n", "\n\n"
-                        )
-                        self.exception_user.message(
-                            message=message, subject="nyantip exception"
-                        )
-
-                    time.sleep(60)  # Let's slow things down if there are issues
-                    continue
-                item.mark_read()
+        self._running = True
+        while self._running:
+            try:
+                self._run_loop()
+            except KeyboardInterrupt:
+                self._running = False
+            except PrawcoreException:
+                logger.exception(
+                    f"PrawcoreException in runloop. Sleeping for {EXCEPTION_SLEEP_TIME} seconds."
+                )
+                time.sleep(EXCEPTION_SLEEP_TIME)
+        logger.info(f"Bot stopped gracefully v{__version__}")
 
     @log_decorater
     def run_self_check(self):

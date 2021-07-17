@@ -6,6 +6,13 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4] - 2021/07/17
+
+### Fixed
+
+- Handle PrawcoreException around the run loop to significantly reduce bot
+  terminations.
+
 ## [0.3] - 2021/06/29
 
 ### Fixed
