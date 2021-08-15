@@ -1,6 +1,7 @@
 import logging
 
 from praw.exceptions import RedditAPIException
+from praw.models import Comment
 from prawcore.exceptions import Forbidden, NotFound
 
 from .util import log_function
@@ -52,7 +53,11 @@ class User(object):
     def message(self, *, body, message=None, reply_to_comment=False, subject):
         assert self.redditor is not None
 
-        if message and (reply_to_comment or not message.was_comment):
+        if message and (
+            reply_to_comment
+            or not isinstance(message, Comment)
+            or not message.was_comment
+        ):
             assert self.redditor == message.author
             logger.debug(f"({self.redditor}): replying to message {message.id}")
             try:
