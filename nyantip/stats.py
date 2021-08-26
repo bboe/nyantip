@@ -23,6 +23,8 @@ from datetime import datetime
 from decimal import Decimal
 from urllib.parse import quote_plus
 
+from prawcore.exceptions import NotFound
+
 MAX_WIKI_CONTENT = 511950  # Bytes
 
 logger = logging.getLogger(__package__)
@@ -142,7 +144,11 @@ def update_wiki(*, lines, nyantip, page):
     subreddit = nyantip.config["reddit"]["subreddit"]
     content = wiki_fit(lines=lines)
     wiki = nyantip.reddit.subreddit(subreddit).wiki[page]
-    if content.strip() != wiki.content_md.strip():
+    try:
+        previous_content = wiki.content_md.strip()
+    except NotFound:
+        previous_content = None
+    if content.strip() != previous_content:
         logger.debug(f"update_user_stats(): updating wiki {subreddit}/{page}")
         wiki.edit(content=content)
     else:
