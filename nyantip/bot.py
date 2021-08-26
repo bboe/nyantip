@@ -264,8 +264,8 @@ class NyanTip:
                     .replace(
                         "{REGEX_KEYWORD}", f"({'|'.join(self.config['keywords'])})"
                     )
-                    .replace("{REGEX_USERNAME}", r"u/([\w-]{3,20})")
-                    .replace("{BOT_NAME}", f"u/{self.config['reddit']['username']}")
+                    .replace("{REGEX_USERNAME}", r"/?u/([\w-]{3,20})")
+                    .replace("{BOT_NAME}", f"/?u/{self.config['reddit']['username']}")
                 )
 
                 command = {
