@@ -192,6 +192,7 @@ class NyanTip:
     def connect_to_reddit(self):
         self.reddit = praw.Reddit(
             check_for_updates=False,
+            ratelimit_seconds=600,
             user_agent=f"nyantip/{__version__} by u/bboe",
             **self.config["reddit"],
         )
