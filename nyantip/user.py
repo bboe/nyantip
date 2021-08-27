@@ -55,8 +55,7 @@ class User(object):
 
         if message and (
             reply_to_comment
-            or not isinstance(message, Comment)
-            or not message.was_comment
+            or not (isinstance(message, Comment) or message.was_comment)
         ):
             assert self.redditor == message.author
             logger.debug(f"({self.redditor}): replying to message {message.id}")
