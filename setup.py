@@ -30,8 +30,8 @@ setup(
     extras_require=extras,
     install_requires=[
         "Jinja2 ~= 3.0",
-        "PyYAML ~= 5.4",
-        "mysqlclient ~= 2.0",
+        "PyYAML ~= 6.0",
+        "mysqlclient ~= 2.2",
         "praw ~= 7.3",
         "python-bitcoinrpc == 1.0",  # Lock version incase someone does something malicous to this package.
         "sqlalchemy ~= 1.4",
