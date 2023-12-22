@@ -28,6 +28,7 @@ setup(
     description="Nyancoin tip bot for Reddit.",
     entry_points={"console_scripts": [f"{PACKAGE_NAME}={PACKAGE_NAME}:main"]},
     extras_require=extras,
+    include_package_data=True,
     install_requires=[
         "Jinja2 ~= 3.0",
         "PyYAML ~= 6.0",
