@@ -151,7 +151,7 @@ class Action(object):
                 config=self.nyantip.config,
                 destination=action.destination,
                 message=action.message,
-                title="verified^nyan",
+                title="verified",
                 to_address=False,
                 transaction_id=None,
             )
@@ -195,7 +195,7 @@ class Action(object):
                 config=self.nyantip.config,
                 destination=action.destination,
                 message=action.message,
-                title="declined^nyan",
+                title="declined",
                 to_address=False,
                 transaction_id=None,
             )
@@ -304,7 +304,7 @@ class Action(object):
             config=self.nyantip.config,
             destination=self.destination,
             message=self.message,
-            title="verified^nyan",
+            title="verified",
             to_address=False,
             transaction_id=None,
         )
@@ -353,7 +353,7 @@ class Action(object):
             config=self.nyantip.config,
             destination=self.destination,
             message=self.message,
-            title="verified^nyan",
+            title="verified",
             to_address=True,
             transaction_id=self.transaction_id,
         )
@@ -374,7 +374,7 @@ class Action(object):
             config=self.nyantip.config,
             destination=self.destination,
             message=self.message,
-            title="expired^nyan",
+            title="expired",
             to_address=False,
             transaction_id=None,
         )
@@ -496,7 +496,7 @@ class Action(object):
                     config=self.nyantip.config,
                     destination=self.destination,
                     message=self.message,
-                    title="pending accept^nyan",
+                    title="pending accept",
                     to_address=False,
                     transaction_id=None,
                 )

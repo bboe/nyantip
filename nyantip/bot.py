@@ -157,10 +157,11 @@ class NyanTip:
                     )
 
                 # Backup wallet
+                prefix = self.config["coin"]["name"].lower()
                 with tempfile.NamedTemporaryFile() as wallet_fp:
                     self.coin.connection.backupwallet(wallet_fp.name)
                     zip_fp.write(
-                        wallet_fp.name, arcname=f"{backup_name}/nyanwallet.dat"
+                        wallet_fp.name, arcname=f"{backup_name}/{prefix}_wallet.dat"
                     )
 
             if backup_passphrase:

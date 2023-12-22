@@ -12,7 +12,7 @@
 {% set withdrawl_url = compose_url.format(bot, "withdraw", "withdraw%20ADDRESS%20AMOUNT") %}
 *****
 
-links ^(nyan)|&nbsp;
+links|&nbsp;
 :---|:---
 {% if message.context %}
 ^Source ^comment|^[[link]]({{ message.context }})
