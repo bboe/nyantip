@@ -19,8 +19,7 @@ import logging
 import os
 import sys
 
-from bitcoinrpc.authproxy import AuthServiceProxy
-
+from .rpc import Rpc
 from .util import log_function
 
 logger = logging.getLogger(__package__)
@@ -32,7 +31,7 @@ class Coin:
         rpc_config = read_coin_config(config["config_file"])
 
         logger.debug(f"connecting to {config['name']}")
-        self.connection = AuthServiceProxy(
+        self.connection = Rpc(
             f"http://{rpc_config['rpcuser']}:{rpc_config['rpcpassword']}@127.0.0.1:{rpc_config['rpcport']}"
         )
 
