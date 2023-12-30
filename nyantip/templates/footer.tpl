@@ -8,8 +8,8 @@
 {% set info_url = compose_url.format(bot, "info", "info") %}
 {% set stats_global_format = " ^[[global_stats]]({})".format(wiki_url.format("stats")) %}
 {% set stats_user_format = " **^[[your_stats]]({}_{})**".format(wiki_url.format("stats"), message.author) %}
-{% set tip_url = compose_url.format(bot, "tip", "tip%20u/USERNAME%20AMOUNT") %}
-{% set withdrawl_url = compose_url.format(bot, "withdraw", "withdraw%20ADDRESS%20AMOUNT") %}
+{% set tip_url = compose_url.format(bot, "tip", config["tip_message_body_url_encoded"]) %}
+{% set withdrawl_url = compose_url.format(bot, "withdraw", config["withdraw_message_body_url_encoded"]) %}
 *****
 
 links|&nbsp;

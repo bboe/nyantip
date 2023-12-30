@@ -17,6 +17,8 @@ coin:
     transaction_fee: "0.0001"
     symbol: 'Ɲ'
     unit: nya
+tip_message_body_url_encoded: "tip%20u/USERNAME%20AMOUNT"
+withdraw_message_body_url_encoded: "withdraw%20ADDRESS%20AMOUNT"
 commands:
     accept: \Aaccept$
     decline: \Adecline$
