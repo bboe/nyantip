@@ -43,7 +43,7 @@ class Action(object):
         self.amount = amount
         self.message = message
         self.nyantip = nyantip
-        if hasattr(message.author, "name"):
+        if message.author is not None:
             self.source = user.User(
                 nyantip=nyantip, name=message.author.name, redditor=message.author
             )
@@ -70,7 +70,7 @@ class Action(object):
 
                 assert isinstance(self.amount, Decimal)
         else:
-            logger.debug(f"Author had no attribute 'name'. message: {message}")
+            logger.debug(f"author: None. message: {message}")
 
     def __str__(self):
         return f"<Action: action={self.action}, amount={self.amount} destination={self.destination} source={self.message.author}>"
