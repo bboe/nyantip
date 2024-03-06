@@ -43,31 +43,34 @@ class Action(object):
         self.amount = amount
         self.message = message
         self.nyantip = nyantip
-        self.source = user.User(
-            nyantip=nyantip, name=message.author.name, redditor=message.author
-        )
-        self.transaction_id = None
+        if hasattr(message.author, "name"):
+            self.source = user.User(
+                nyantip=nyantip, name=message.author.name, redditor=message.author
+            )
+            self.transaction_id = None
 
-        if action == "tip":
-            self.destination = user.User(name=destination, nyantip=nyantip)
+            if action == "tip":
+                self.destination = user.User(name=destination, nyantip=nyantip)
+            else:
+                self.destination = destination
+
+            if self.action in ["tip", "withdraw"]:
+                if keyword:
+                    assert self.amount is None
+                    value = self.nyantip.config["keywords"][keyword.lower()]
+                    if isinstance(value, Decimal):
+                        self.amount = value
+                    else:
+                        assert isinstance(value, str)
+                        logger.debug(f"__init__(): evaluating {value!r}")
+                        self.amount = eval(value)
+                elif isinstance(amount, str):
+                    assert self.amount.replace(".", "").isnumeric()
+                    self.amount = Decimal(self.amount)
+
+                assert isinstance(self.amount, Decimal)
         else:
-            self.destination = destination
-
-        if self.action in ["tip", "withdraw"]:
-            if keyword:
-                assert self.amount is None
-                value = self.nyantip.config["keywords"][keyword.lower()]
-                if isinstance(value, Decimal):
-                    self.amount = value
-                else:
-                    assert isinstance(value, str)
-                    logger.debug(f"__init__(): evaluating {value!r}")
-                    self.amount = eval(value)
-            elif isinstance(amount, str):
-                assert self.amount.replace(".", "").isnumeric()
-                self.amount = Decimal(self.amount)
-
-            assert isinstance(self.amount, Decimal)
+            logger.debug(f"Author had no attribute 'name'. message: {message}")
 
     def __str__(self):
         return f"<Action: action={self.action}, amount={self.amount} destination={self.destination} source={self.message.author}>"
