@@ -573,7 +573,7 @@ def actions(
             message = nyantip.reddit.inbox.message(row["message_id"])
 
         if message.author is None:
-            log.warning("Cannot process item missing author. %r", message)
+            logger.warning("Cannot process item missing author. %r", message)
             continue
 
         results.append(
