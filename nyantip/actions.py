@@ -19,6 +19,7 @@ import logging
 from decimal import Decimal
 from functools import partial
 
+from praw.exceptions import ClientException
 from praw.models import Comment
 
 from . import stats, user
@@ -572,8 +573,12 @@ def actions(
         else:
             message = nyantip.reddit.inbox.message(row["message_id"])
 
-        if message.author is None:
-            logger.warning("Cannot process item missing author. %r", message)
+        try:
+            if message.author is None:
+                logger.warning("Cannot process item missing author. %r", message)
+                continue
+        except ClientException:
+            logger.warning("Cannot access item. %r", message)
             continue
 
         results.append(
