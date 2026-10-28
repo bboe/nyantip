@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS `actions` (
   `amount` decimal(17,8) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT NOW(),
   `destination` varchar(34) DEFAULT NULL,
-  `message_id` varchar(10) NOT NULL,
+  `message_id` varchar(32) NOT NULL,
   `message_timestamp` timestamp NOT NULL,
   `path` varchar(128) DEFAULT NULL,
   `source` varchar(20) NOT NULL,
