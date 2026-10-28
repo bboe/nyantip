@@ -6,6 +6,21 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+
+- Widen `actions.message_id` to fit Reddit's longer comment IDs. MySQL without
+  strict mode cut these IDs to 10 characters. The duplicate check then failed,
+  so a reprocessed comment paid its tip again. Update existing databases with:
+
+  ```sql
+  ALTER TABLE actions MODIFY message_id varchar(32) NOT NULL;
+  UPDATE actions
+  SET message_id = SUBSTRING_INDEX(SUBSTRING_INDEX(path, '/', -2), '/', 1)
+  WHERE path IS NOT NULL AND LENGTH(message_id) = 10;
+  ```
+
 ## [0.4] - 2021/07/17
 
 ### Fixed
